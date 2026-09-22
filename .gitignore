@@ -1,0 +1,73 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# JavaScript / frontend
+node_modules/
+.next/
+.nuxt/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Local tools and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dataset and generated intermediates
+data/raw/*
+!data/raw/README.md
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/README.md
+!data/processed/.gitkeep
+data/cache/
+knowledge/raw/*
+!knowledge/raw/README.md
+!knowledge/raw/.gitkeep
+
+# Generated drafts and traces; validated submission JSON is committed
+outputs/drafts/
+outputs/traces/*
+!outputs/traces/README.md
+
+# Runtime state and logs
+*.log
+logs/
+.langgraph_api/
+.langgraph/
+checkpoints/
+tmp/
+.cache/
+
+# Local source brief and large documents
+TigerGraph Agentic Fraud Investigation HHGOA.pdf
+knowledge/raw/*.pdf
+
+# TigerGraph exports and backups
+*.gsql.bak
+*.tgz
+*.tar.gz
