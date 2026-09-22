@@ -23,7 +23,8 @@ GoaHH/
 ├── data/
 │   ├── raw/                    # Ignored official CSVs
 │   ├── processed/              # Ignored derived load files
-│   └── fixtures/               # Small synthetic, safe test data
+│   ├── fixtures/               # Small synthetic, safe test data
+│   └── source-manifest.json    # Safe Drive IDs, byte counts, and SHA-256 baseline
 ├── knowledge/
 │   ├── policy/                 # Versioned challenge policy chunks
 │   ├── typologies/             # Known/undocumented pattern knowledge

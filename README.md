@@ -43,6 +43,10 @@ flowchart LR
 9. [Delivery roadmap](docs/09-delivery-roadmap.md)
 10. [Research notes](docs/10-research-notes.md)
 11. [Demo storyboard](docs/11-demo-storyboard.md)
+12. [Requirements traceability](docs/12-requirements-traceability.md)
+13. [Implementation backlog](docs/13-implementation-backlog.md)
+14. [Setup checklist](docs/14-setup-checklist.md)
+15. [Official source data profile](docs/15-source-data-profile.md)
 
 Architecture decisions live in [docs/decisions](docs/decisions/README.md). The canonical repository map is in [docs/00-repository-map.md](docs/00-repository-map.md).
 
@@ -61,7 +65,8 @@ Architecture decisions live in [docs/decisions](docs/decisions/README.md). The c
 - Dataset contents, policy rules, 20-case contract, and exact answer shape identified.
 - Current TigerGraph MCP, GraphRAG, graph-fraud, temporal-leakage, calibration, human-oversight, LangGraph, and FinCEN guidance researched.
 - Implementation-ready repository architecture and two-day delivery sequence documented.
-- Source code and benchmark data intentionally deferred until the architecture review is complete.
+- Official data downloaded locally, hashed, fully profiled, and kept outside Git; source manifest and card-ID derivation are committed.
+- Product source code remains deferred until the architecture/data review is complete.
 
 ## External prerequisites
 
@@ -69,6 +74,6 @@ Architecture decisions live in [docs/decisions](docs/decisions/README.md). The c
 - Python 3.12+ for the backend and agent services
 - Node.js 22+ for the analyst workbench
 - An LLM provider API key
-- Git and a GitHub repository before the first implementation commit
+- Git and access to the public project repository
 
 Never commit credentials or the raw benchmark CSV files. Copy `.env.example` to `.env` locally when implementation begins.

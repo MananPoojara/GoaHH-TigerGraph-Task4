@@ -34,7 +34,7 @@ erDiagram
 | Vertex | Primary ID | Important attributes | Purpose |
 |---|---|---|---|
 | `Customer` | supplied `customer_id` | first/last activity, card count, baseline aggregates | Investigation anchor |
-| `Card` | supplied `card_id` | network/type/issuer fields, first/last activity | Transaction sequence and exposure scope |
+| `Card` | derived supplied-format `card_id` | raw `card1`–`card6`, card type, first/last observed activity | Transaction sequence and exposure scope |
 | `Transaction` | supplied `TransactionID` as string | timestamp, amount, product, channel, region, risk score, selected feature groups | Atomic financial event |
 | `DeviceProfile` | deterministic hash of normalized DeviceInfo + OS + browser + screen | readable profile, device status, proxy category | Cross-card identity link |
 | `EmailDomain` | normalized domain | role/count statistics | Purchaser/recipient relationship signal |
@@ -48,6 +48,12 @@ erDiagram
 | `PolicyRule` | `R1`…`R10` plus case/report/stop rules | exact text, policy version | Stable policy citation |
 
 `ClosedCase` from the suggested schema is represented as `Case` with `source=closed_history` and `trust_tier=labeled_history`. This unifies memory retrieval while preserving provenance. The 20 benchmark cases use `source=benchmark` and a lower trust tier until their simulated investigation finishes.
+
+### Card ID derivation
+
+The source profile proves that `card1` is customer-level and cannot identify `K1/K2`. Derive the supplied card IDs by grouping each customer on raw `card6`, sorting distinct values lexically with the empty value retained, and assigning `K1` onward. The rule matches all 1,913 historical mappings and all 20 exam anchors. See [ADR-0006](decisions/0006-card-identity-derivation.md) and the [source data profile](15-source-data-profile.md).
+
+Store the mapping as a versioned staging artifact and assert it during load. A Card vertex also stores `observed_from`; case-time queries must not reveal a card or activity before it was first observed.
 
 ## Important edges
 
@@ -94,8 +100,8 @@ Receipts are compact enough to persist with the case and sufficient to rerun the
 
 ## Loading plan
 
-1. Hash and profile all four source files; record row counts, headers, null rates, and duplicate IDs.
-2. Load Customer, Card, Transaction, `OWNS`, and `MADE` first.
+1. Verify all source files against `data/source-manifest.json` and the accepted data profile.
+2. Materialize the validated `(customer_id, card6) → card_id` mapping, then load Customer, Card, Transaction, `OWNS`, and `MADE`.
 3. Load identity rows and derive deterministic DeviceProfile IDs.
 4. Load email/region vertices and transaction edges.
 5. Build `NEXT` edges ordered by card and timestamp.

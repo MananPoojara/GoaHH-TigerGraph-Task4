@@ -4,6 +4,7 @@ This matrix prevents a polished subset from being mistaken for a complete submis
 
 | Requirement | Design owner | Planned proof |
 |---|---|---|
+| Official data integrity and exact IDs | Data foundation | `data/source-manifest.json` plus source profile; byte/hash, row, null, reference, exposure, and card-mapping checks |
 | Trigger from risk score, customer report, analyst | Investigator intake | Contract tests for all three trigger types |
 | Graph, transaction, device, behavior, prior case, external evidence | Graph queries + GraphRAG | Evidence ledger/source coverage report |
 | Identify pattern and risk | Hypothesis/assessment nodes | Historical validation + per-case review |
@@ -26,7 +27,7 @@ This matrix prevents a polished subset from being mistaken for a complete submis
 | Demo video | Demo script | Verified public video URL |
 | Technical blog | Publication artifact | Verified public article URL |
 | Social post with tag/link | Publication artifact | Verified post URL and `@TigerGraphDB` |
-| GitHub repository | Repository setup | Logged-out URL/readability check |
+| GitHub repository | Repository setup | Public `main` at `MananPoojara/GoaHH-TigerGraph-Task4`, verified through GitHub API |
 | One final form submission | Team lead | Submission confirmation before deadline |
 
 ## Challenge success criteria coverage

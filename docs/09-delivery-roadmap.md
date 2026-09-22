@@ -40,6 +40,8 @@ Exit: this documentation review finds no unanswered question that would change t
 
 Exit: a manual investigation can reproduce its graph evidence with real IDs.
 
+Current evidence: official data acquisition, hashes, full null profile, referential checks, and card-ID derivation are complete in [the source data profile](15-source-data-profile.md). Savanna provisioning, loading, and the manual graph investigation remain.
+
 ## Phase 2 — next 6 hours: decision core
 
 1. Implement typed contracts and exact answer validator.

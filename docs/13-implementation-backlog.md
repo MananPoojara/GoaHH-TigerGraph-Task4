@@ -5,8 +5,8 @@ Priority is strict: P0 blocks the official cases, P1 completes the judged produc
 ## P0 — benchmark core
 
 - [ ] Create Savanna workspace; record endpoint and enable auto-stop/auto-start.
-- [ ] Acquire and hash all four official files.
-- [ ] Profile headers, counts, nulls, duplicates, and ID relationships.
+- [x] Acquire and hash all four official files plus the authoritative README; commit the safe manifest.
+- [x] Profile headers, counts, all-column nulls, duplicates, references, exposure arithmetic, and card-ID relationships.
 - [ ] Implement core and extended TigerGraph schema.
 - [ ] Implement staged loading jobs and reconciliation report.
 - [ ] Implement the installed investigation queries in `docs/04-data-and-graph-model.md`.
