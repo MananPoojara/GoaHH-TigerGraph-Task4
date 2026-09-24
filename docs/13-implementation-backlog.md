@@ -4,23 +4,18 @@ Priority is strict: P0 blocks the official cases, P1 completes the judged produc
 
 ## P0 — benchmark core
 
-> Status: the pipeline is implemented and tested end to end against a
-> synthetic fixture. The remaining unticked P0 items all need either the two
-> large official CSVs in `data/raw/` or a provisioned TigerGraph workspace.
-> See [16-implementation-notes.md](16-implementation-notes.md).
-
 - [ ] Create Savanna workspace; record endpoint and enable auto-stop/auto-start.
 - [x] Acquire and hash all four official files plus the authoritative README; commit the safe manifest.
 - [x] Profile headers, counts, all-column nulls, duplicates, references, exposure arithmetic, and card-ID relationships.
-- [x] Implement core and extended TigerGraph schema.
-- [x] Implement staged loading jobs and reconciliation report.
-- [x] Implement the installed investigation queries in `docs/04-data-and-graph-model.md`.
+- [ ] Implement core and extended TigerGraph schema.
+- [ ] Implement staged loading jobs and reconciliation report.
+- [ ] Implement the installed investigation queries in `docs/04-data-and-graph-model.md`.
 - [ ] Implement causal feature registry, cutoff enforcement, and evidence path receipts.
 - [ ] Configure TigerGraph MCP and verify least-privilege runtime tools.
-- [x] Implement typed contracts and exact answer validator.
-- [x] Implement R1–R10, routing, case/report, exposure, and stop predicates.
-- [x] Implement seeded evidence simulator.
-- [x] Implement workflow state, checkpoints, counter-evidence, and value-of-information gate.
+- [ ] Implement typed contracts and exact answer validator.
+- [ ] Implement R1–R10, routing, case/report, exposure, and stop predicates.
+- [ ] Implement seeded evidence simulator.
+- [ ] Implement workflow state, checkpoints, counter-evidence, and value-of-information gate.
 - [ ] Fit and lock the chronological probability calibrator; publish reliability evidence.
 - [ ] Complete one official case with graph writeback/readback.
 - [ ] Run, validate, and review all 20 cases.
@@ -29,12 +24,12 @@ Priority is strict: P0 blocks the official cases, P1 completes the judged produc
 
 - [ ] Ingest closed-case notes, policy, typologies, and selected regulatory chunks into vector attributes.
 - [ ] Fuse structural and semantic prior-case retrieval.
-- [x] Build analyst queue, progress timeline, evidence ledger/graph, assessment, and action panels.
-- [x] Add approval interaction and export gate.
+- [ ] Build analyst queue, progress timeline, evidence ledger/graph, assessment, and action panels.
+- [ ] Add approval interaction and export gate.
 - [ ] Add response-outcome preview and append-only approval/override records.
 - [ ] Add local trace/replay and quality dashboard.
-- [x] Add test fixtures, integration checks, and end-to-end release command.
-- [x] Add setup/run documentation and GitHub CI.
+- [ ] Add test fixtures, integration checks, and end-to-end release command.
+- [ ] Add setup/run documentation and GitHub CI.
 - [ ] Rehearse, record, upload, and verify demo.
 - [ ] Publish and verify technical blog and social post.
 - [ ] Run final audit and submit.
