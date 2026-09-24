@@ -745,8 +745,12 @@ class FixtureGraphClient:
         if stored is None:
             closed = self.closed_cases.get(case_id)
             if closed is None:
-                return [{"case_details": [], "evidence": [], "evidence_requests": [], "actions": []}]
-            return [{"case_details": [closed], "evidence": [], "evidence_requests": [], "actions": []}]
+                return [
+                    {"case_details": [], "evidence": [], "evidence_requests": [], "actions": []}
+                ]
+            return [
+                {"case_details": [closed], "evidence": [], "evidence_requests": [], "actions": []}
+            ]
         return [
             {
                 "case_details": [stored.attributes],
