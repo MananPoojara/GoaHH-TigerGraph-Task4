@@ -1,0 +1,193 @@
+// FraudCase-memory queries.
+//
+// Memory retrieval is time-gated: a case may only see history the bank had
+// already closed before its own decision time. The closed history ends
+// 2016-11-06 and the benchmark opens 2016-11-12, so in practice all labelled
+// history is visible to all 20 cases -- but the gate is enforced anyway,
+// because agent-derived cases written during a chronological run are not.
+
+USE GRAPH FraudLens
+
+// ---------------------------------------------------------------------------
+// find_similar_cases  (structural retrieval)
+// Finds closed cases that share concrete structure with this one: the same
+// customer, the same card, a device profile in common, or the same pattern
+// with a comparable exposure. Structural hits are auditable in a way a pure
+// embedding neighbour is not, so they are retrieved first and scored openly.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY find_similar_cases(
+  STRING customer_id,
+  STRING card_id,
+  SET<STRING> device_ids,
+  STRING pattern_hint,
+  DATETIME cutoff,
+  INT max_cases
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<
+    STRING case_id, STRING outcome, STRING pattern, DOUBLE exposure_usd,
+    INT n_txns, BOOL report_filed, DATETIME closed_at,
+    DOUBLE structural_score, STRING link_reason
+  > CaseRow;
+
+  // A case is scored by its single strongest link, and labelled with that
+  // link's reason. Links are applied strongest first so the first reason
+  // recorded for a case is always the one that set its score.
+  MapAccum<STRING, MaxAccum<DOUBLE>> @@scores;
+  MapAccum<STRING, STRING> @@reasons;
+  // A SELECT's LIMIT trims its output vertex set, not what its ACCUM already
+  // collected, so the top-N cut must be a bounded heap.
+  HeapAccum<CaseRow>(1000, structural_score DESC, closed_at DESC) @@results;
+
+  @@results.resize(max_cases);
+
+  Cases = {FraudCase.*};
+
+  // Only labelled history the bank had already closed by the cutoff.
+  Visible = SELECT c FROM Cases:c
+            WHERE c.trust_tier == "labeled_history"
+              AND datetime_diff(cutoff, c.closed_at) > 0;
+
+  // Same customer is the strongest structural link.
+  SameCustomer = SELECT c FROM Visible:c WHERE c.customer_id == customer_id
+                 ACCUM
+                   @@scores += (c.case_id -> 1.0),
+                   @@reasons += (c.case_id -> "same customer");
+
+  // A device profile shared with a closed case is the link that turns one
+  // card's alert into a multi-customer incident.
+  SharedDevice = SELECT c FROM Visible:c -(CONNECTED_DEVICE>)- DeviceProfile:d
+                 WHERE device_ids.contains(d.device_id)
+                   AND NOT @@reasons.containsKey(c.case_id)
+                 ACCUM
+                   @@scores += (c.case_id -> 0.9),
+                   @@reasons += (c.case_id -> "shared device profile");
+
+  SameCard = SELECT c FROM Visible:c
+             WHERE c.card_id == card_id AND NOT @@reasons.containsKey(c.case_id)
+             ACCUM
+               @@scores += (c.case_id -> 0.6),
+               @@reasons += (c.case_id -> "same card");
+
+  SamePattern = SELECT c FROM Visible:c
+                WHERE pattern_hint != "" AND c.pattern == pattern_hint
+                  AND NOT @@reasons.containsKey(c.case_id)
+                ACCUM
+                  @@scores += (c.case_id -> 0.3),
+                  @@reasons += (c.case_id -> "same pattern");
+
+  Scored = SELECT c FROM Visible:c WHERE @@scores.containsKey(c.case_id)
+           ACCUM @@results += CaseRow(
+             c.case_id, c.outcome, c.pattern, c.exposure_usd, c.n_txns,
+             c.report_filed, c.closed_at, @@scores.get(c.case_id),
+             @@reasons.get(c.case_id));
+
+  PRINT @@results AS similar_cases;
+}
+
+// ---------------------------------------------------------------------------
+// get_case_history
+// The full stored record of one case: evidence, requests, and the initial and
+// final action decisions. This is what makes a written case usable as memory
+// rather than a summary string.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_case_history(STRING case_id) FOR GRAPH FraudLens SYNTAX v2 {
+
+  Start = {FraudCase.*};
+  TheCase = SELECT c FROM Start:c WHERE c.case_id == case_id;
+
+  Ev = SELECT e FROM TheCase:c -(HAS_EVIDENCE>)- Evidence:e ORDER BY e.seq ASC;
+  Reqs = SELECT r FROM TheCase:c -(REQUESTED>)- EvidenceRequest:r ORDER BY r.request_no ASC;
+  Acts = SELECT a FROM TheCase:c -(RECOMMENDS>)- ActionDecision:a ORDER BY a.ordinal ASC;
+  Txns = SELECT t FROM TheCase:c -(INVOLVES>)- Transaction:t;
+  Devs = SELECT d FROM TheCase:c -(CONNECTED_DEVICE>)- DeviceProfile:d;
+  Similar = SELECT s FROM TheCase:c -(SIMILAR_TO>)- FraudCase:s;
+
+  PRINT TheCase AS case_details;
+  PRINT Ev AS evidence;
+  PRINT Reqs AS evidence_requests;
+  PRINT Acts AS actions;
+  PRINT Txns[Txns.txn_id AS txn_id, Txns.ts AS ts, Txns.amount AS amount, Txns.channel AS channel] AS transactions;
+  PRINT Devs[Devs.device_id AS device_id, Devs.readable AS readable] AS devices;
+  PRINT Similar[Similar.case_id AS case_id, Similar.outcome AS outcome, Similar.pattern AS pattern] AS similar_cases;
+}
+
+// ---------------------------------------------------------------------------
+// get_case_graph
+// A bounded, UI-ready evidence subgraph. Node and edge limits are enforced in
+// the query, not in the browser, so a hub device can never return a hairball
+// that the analyst cannot read.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_case_graph(
+  STRING case_id,
+  INT max_transactions,
+  INT max_connected_cards
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  Start = {FraudCase.*};
+  TheCase = SELECT c FROM Start:c WHERE c.case_id == case_id;
+
+  Cust = SELECT cu FROM TheCase:c -(ABOUT_CUSTOMER>)- Customer:cu;
+  Cards = SELECT cd FROM TheCase:c -(ON_CARD>)- Card:cd;
+  Txns = SELECT t FROM TheCase:c -(INVOLVES>)- Transaction:t LIMIT max_transactions;
+  Devs = SELECT d FROM Txns:t -(FROM_DEVICE>)- DeviceProfile:d;
+  Connected = SELECT cd FROM TheCase:c -(CONNECTED_TO>)- Card:cd LIMIT max_connected_cards;
+  Regions = SELECT r FROM Txns:t -(BILLED_IN>)- BillingRegion:r;
+  Similar = SELECT s FROM TheCase:c -(SIMILAR_TO>)- FraudCase:s;
+
+  PRINT TheCase[TheCase.case_id AS case_id, TheCase.status AS status,
+                TheCase.verdict AS verdict, TheCase.pattern AS pattern,
+                TheCase.fraud_probability AS fraud_probability,
+                TheCase.exposure_usd AS exposure_usd] AS case_node;
+  PRINT Cust[Cust.customer_id AS customer_id] AS customers;
+  PRINT Cards[Cards.card_id AS card_id, Cards.card_type AS card_type] AS cards;
+  PRINT Txns[Txns.txn_id AS txn_id, Txns.ts AS ts, Txns.amount AS amount,
+             Txns.channel AS channel, Txns.risk_score AS risk_score,
+             Txns.device_profile_id AS device_profile_id] AS transactions;
+  PRINT Devs[Devs.device_id AS device_id, Devs.readable AS readable,
+             Devs.card_fanout AS card_fanout] AS devices;
+  PRINT Connected[Connected.card_id AS card_id, Connected.customer_id AS customer_id] AS connected_cards;
+  PRINT Regions[Regions.region_code AS region_code] AS regions;
+  PRINT Similar[Similar.case_id AS case_id, Similar.outcome AS outcome, Similar.pattern AS pattern] AS similar_cases;
+}
+
+// ---------------------------------------------------------------------------
+// get_correlated_case_triggers
+// Other alerts near this one in time and entity space. Deliberately does NOT
+// merge them: two alerts that look like one incident may not be, and merging
+// is an analyst's decision, not a query's.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_correlated_case_triggers(
+  STRING customer_id,
+  SET<STRING> device_ids,
+  DATETIME cutoff,
+  INT window_days,
+  INT max_results
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<STRING case_id, STRING customer_id, STRING pattern,
+                STRING outcome, DATETIME opened_at, STRING link_reason> Correlated;
+
+  ListAccum<Correlated> @@correlated;
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_days DAY);
+
+  Cases = {FraudCase.*};
+  Nearby = SELECT c FROM Cases:c
+           WHERE datetime_diff(cutoff, c.opened_at) > 0
+             AND datetime_diff(c.opened_at, window_start) >= 0
+             AND c.customer_id != customer_id
+           ACCUM @@correlated += Correlated(
+             c.case_id, c.customer_id, c.pattern, c.outcome,
+             c.opened_at, "opened in the same window")
+           LIMIT max_results;
+
+  ViaDevice = SELECT c FROM Cases:c -(CONNECTED_DEVICE>)- DeviceProfile:d
+              WHERE device_ids.contains(d.device_id)
+                AND datetime_diff(cutoff, c.opened_at) > 0
+              ACCUM @@correlated += Correlated(
+                c.case_id, c.customer_id, c.pattern, c.outcome,
+                c.opened_at, "shares a device profile")
+              LIMIT max_results;
+
+  PRINT @@correlated AS correlated_triggers;
+}

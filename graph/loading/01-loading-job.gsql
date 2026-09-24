@@ -1,0 +1,124 @@
+// FraudLens loading job: every vertex and edge from the preprocessed files.
+//
+// Input is `data/processed/*.csv`, written by scripts/prepare_data.py. Each
+// DEFINE FILENAME is a file tag; scripts/install_graph.py --load posts the
+// matching file to it in chunks, so the same job works on Savanna (no shared
+// filesystem) and on a local Community Edition.
+//
+// Column references are positional ($0, $1, ...) rather than header-name
+// based ($"col"). Savanna cannot read a local sample file at job-creation
+// time to learn header names, so GSQL refuses header-name references unless
+// the FILENAME is initialized from a real path or a DEFINE HEADER is given.
+// Positional indices avoid that requirement entirely and match the column
+// order scripts/prepare_data.py writes; see the header comment on each LOAD
+// block for that order.
+//
+// Attributes the files do not carry are loaded as `_` (the schema default).
+// They are derived features or fields written later by case write-back.
+//
+// Run with:  gsql -g FraudLens graph/loading/01-loading-job.gsql
+
+USE GRAPH FraudLens
+
+CREATE LOADING JOB load_fraudlens FOR GRAPH FraudLens {
+
+  DEFINE FILENAME f_customers;
+  DEFINE FILENAME f_cards;
+  DEFINE FILENAME f_devices;
+  DEFINE FILENAME f_email_domains;
+  DEFINE FILENAME f_billing_regions;
+  DEFINE FILENAME f_transactions;
+  DEFINE FILENAME f_next_edges;
+  DEFINE FILENAME f_closed_cases;
+  DEFINE FILENAME f_closed_case_txns;
+
+  // customers.csv: customer_id,first_seen,last_seen,card_count,txn_count,
+  //                total_amount,avg_amount,home_region
+  LOAD f_customers
+    TO VERTEX Customer VALUES (
+      $0, $1, $2, $3, $4, $5, $6, $7)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // cards.csv: card_id,customer_id,card_ordinal,card_type,card_network,
+  //            card1,card2,card3,card5,observed_from,observed_to,txn_count,
+  //            avg_amount
+  // Card vertices, and the Customer -> Card ownership edge from the same row.
+  LOAD f_cards
+    TO VERTEX Card VALUES (
+      $0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12),
+    TO EDGE OWNS VALUES ($1, $0, $9, $10)
+      WHERE NOT ($1 IS EMPTY)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // devices.csv: device_id,readable,device_info,device_type,os,browser,
+  //              screen,proxy_status,first_seen,last_seen,card_fanout,
+  //              customer_fanout
+  LOAD f_devices
+    TO VERTEX DeviceProfile VALUES (
+      $0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // email_domains.csv: domain,purchaser_count,recipient_count
+  LOAD f_email_domains
+    TO VERTEX EmailDomain VALUES ($0, $1, $2)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // billing_regions.csv: region_code,country_code,card_count,txn_count
+  LOAD f_billing_regions
+    TO VERTEX BillingRegion VALUES ($0, $1, $2, $3)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // transactions.csv: txn_id,customer_id,card_id,ts,transaction_dt,amount,
+  //   product_cd,channel,risk_score,addr1,addr2,dist1,p_email,r_email,
+  //   device_profile_id,device_is_new,proxy_status,match_status,c1,c13,c14,
+  //   d1,d2,d15,m4
+  // Transaction vertices plus every relationship a transaction row implies.
+  // Optional links are skipped when the column is empty, so no vertex is ever
+  // created with an empty primary ID.
+  LOAD f_transactions
+    TO VERTEX Transaction VALUES (
+      $0, $1, $2, $3, $4, $5,
+      $6, $7, $8, $9, $10, $11,
+      $12, $13, $14, $15,
+      $16, $17, $18, $19, $20, $21, $22,
+      $23, $24, _, _, _, _),
+    TO EDGE MADE VALUES ($2, $0, $3, $5)
+      WHERE NOT ($2 IS EMPTY),
+    TO EDGE FROM_DEVICE VALUES (
+      $0, $14, $3, $15, $16)
+      WHERE NOT ($14 IS EMPTY),
+    TO EDGE PURCHASER_EMAIL VALUES ($0, $12, $3)
+      WHERE NOT ($12 IS EMPTY),
+    TO EDGE RECIPIENT_EMAIL VALUES ($0, $13, $3)
+      WHERE NOT ($13 IS EMPTY),
+    TO EDGE BILLED_IN VALUES ($0, $9, $3)
+      WHERE NOT ($9 IS EMPTY)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // next_edges.csv: from_txn_id,to_txn_id,gap_seconds,card_id
+  // The per-card ordered spine, precomputed by preprocessing.
+  LOAD f_next_edges
+    TO EDGE NEXT VALUES ($0, $1, $2, $3)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // closed_cases.csv: case_id,source,trust_tier,customer_id,card_id,
+  //   opened_at,closed_at,status,verdict,outcome,pattern,fraud_probability,
+  //   exposure_usd,n_txns,report_filed,actions_taken,analyst_notes
+  // The bank's closed investigations: labelled case memory.
+  LOAD f_closed_cases
+    TO VERTEX FraudCase VALUES (
+      $0, $1, $2, $3, $4,
+      $5, $6, $7, $8, $9, $10,
+      _, $11, $12, $13, $14,
+      _, _, _, _, $16, $15, _, _, _),
+    TO EDGE ABOUT_CUSTOMER VALUES ($0, $3)
+      WHERE NOT ($3 IS EMPTY),
+    TO EDGE ON_CARD VALUES ($0, $4, "subject")
+      WHERE NOT ($4 IS EMPTY)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+
+  // closed_case_txns.csv: case_id,txn_id,affected,role
+  LOAD f_closed_case_txns
+    TO EDGE INVOLVES VALUES ($0, $1, $2, $3)
+    USING SEPARATOR=",", HEADER="true", EOL="\n", QUOTE="double";
+}
