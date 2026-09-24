@@ -1,0 +1,153 @@
+// Graph algorithms for shared-origin ring discovery.
+//
+// These are batch analytics, not the online investigation path. A case
+// investigation uses bounded traversals around its trigger; whole-graph
+// component and degree analysis runs offline and stores its results as vertex
+// attributes (`card_fanout`, `customer_fanout`) that the online queries then
+// read cheaply.
+//
+// Temporal integrity: `as_of` bounds every edge these algorithms traverse.
+// A component computed over the full graph and backfilled into a case would
+// let a November case see December structure, so scored runs must recompute
+// per cutoff or exclude the feature entirely.
+
+USE GRAPH FraudLens
+
+// ---------------------------------------------------------------------------
+// refresh_device_fanout
+// Degree analysis over the device -> transaction -> card projection.
+//
+// Fan-out is the measure that makes a device profile interesting: one profile
+// used by one customer is a phone, the same profile across nine customers in
+// a fortnight is an incident. Stored on the vertex so `find_device_connections`
+// can return it without recomputing.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY refresh_device_fanout(DATETIME as_of) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SetAccum<STRING> @cards;
+  SetAccum<STRING> @customers;
+  SumAccum<INT> @@devices_updated;
+
+  Devices = {DeviceProfile.*};
+
+  Linked = SELECT d FROM Devices:d -(DEVICE_USED_BY>)- Transaction:t
+           WHERE datetime_diff(as_of, t.ts) >= 0
+           ACCUM
+             d.@cards += t.card_id,
+             d.@customers += t.customer_id;
+
+  Updated = SELECT d FROM Linked:d
+            POST-ACCUM
+              d.card_fanout = d.@cards.size(),
+              d.customer_fanout = d.@customers.size(),
+              @@devices_updated += 1;
+
+  PRINT @@devices_updated AS devices_updated;
+}
+
+// ---------------------------------------------------------------------------
+// find_high_fanout_origins
+// The candidate rings: origins touching several distinct customers inside one
+// window. Output feeds optional autonomous monitoring and gives R6 a starting
+// point, but a high count alone is never a finding -- the agent still has to
+// show fraud on the connected cards.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY find_high_fanout_origins(
+  DATETIME window_start,
+  DATETIME window_end,
+  INT min_customers,
+  INT max_results
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<STRING device_id, STRING readable, INT customer_count,
+                INT card_count, INT txn_count, DOUBLE avg_risk_score> RingCandidate;
+
+  SetAccum<STRING> @cards;
+  SetAccum<STRING> @customers;
+  SumAccum<INT> @txns;
+  SumAccum<DOUBLE> @risk_sum;
+  ListAccum<RingCandidate> @@candidates;
+
+  Devices = {DeviceProfile.*};
+
+  Active = SELECT d FROM Devices:d -(DEVICE_USED_BY>)- Transaction:t
+           WHERE datetime_diff(t.ts, window_start) >= 0
+             AND datetime_diff(window_end, t.ts) >= 0
+           ACCUM
+             d.@cards += t.card_id,
+             d.@customers += t.customer_id,
+             d.@txns += 1,
+             d.@risk_sum += t.risk_score;
+
+  Candidates = SELECT d FROM Active:d
+               WHERE d.@customers.size() >= min_customers
+               ACCUM @@candidates += RingCandidate(
+                 d.device_id, d.readable, d.@customers.size(),
+                 d.@cards.size(), d.@txns,
+                 d.@risk_sum / d.@txns)
+               ORDER BY d.@customers.size() DESC
+               LIMIT max_results;
+
+  PRINT @@candidates AS ring_candidates;
+}
+
+// ---------------------------------------------------------------------------
+// connected_cards_component
+// Weakly connected component over the card graph induced by shared device
+// profiles, bounded by hop count and window.
+//
+// Implemented as a bounded breadth-first expansion rather than a full
+// label-propagation pass: an investigation needs the component containing one
+// card, and expanding outward from that seed costs far less than partitioning
+// the whole graph to answer a single question.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY connected_cards_component(
+  STRING seed_card_id,
+  DATETIME window_start,
+  DATETIME window_end,
+  INT max_hops,
+  INT max_cards
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  OrAccum @visited;
+  SumAccum<INT> @hop;
+  SetAccum<STRING> @@component_cards;
+  SetAccum<STRING> @@bridging_devices;
+  SumAccum<INT> @@frontier_size;
+
+  Start = {Card.*};
+  Seed = SELECT c FROM Start:c WHERE c.card_id == seed_card_id
+         ACCUM c.@visited += TRUE, c.@hop += 0
+         POST-ACCUM @@component_cards += c.card_id;
+
+  Frontier = Seed;
+
+  WHILE Frontier.size() > 0 AND @@component_cards.size() < max_cards LIMIT max_hops DO
+
+    // card -> its transactions -> the device profiles they used
+    FrontierTxns = SELECT t FROM Frontier:c -(MADE>)- Transaction:t
+                   WHERE t.device_profile_id != ""
+                     AND datetime_diff(t.ts, window_start) >= 0
+                     AND datetime_diff(window_end, t.ts) >= 0;
+
+    Bridges = SELECT d FROM FrontierTxns:t -(FROM_DEVICE>)- DeviceProfile:d
+              ACCUM @@bridging_devices += d.device_id;
+
+    // ... and back out to every other card that used the same profile
+    NeighborTxns = SELECT t FROM Bridges:d -(DEVICE_USED_BY>)- Transaction:t
+                   WHERE datetime_diff(t.ts, window_start) >= 0
+                     AND datetime_diff(window_end, t.ts) >= 0;
+
+    Frontier = SELECT c FROM NeighborTxns:t -(MADE_BY>)- Card:c
+               WHERE c.@visited == FALSE
+               ACCUM c.@visited += TRUE
+               POST-ACCUM
+                 @@component_cards += c.card_id,
+                 @@frontier_size += 1
+               LIMIT max_cards;
+  END;
+
+  PRINT @@component_cards AS component_cards;
+  PRINT @@bridging_devices AS bridging_devices;
+  PRINT @@component_cards.size() AS component_size;
+}
