@@ -1,0 +1,189 @@
+// Anchor and temporal-context queries.
+//
+// Every read query takes an explicit `cutoff`. Nothing at or after the case
+// decision time may be returned, because a benchmark case opened on
+// 2016-12-05 must not be able to see what happened on 2016-12-06. The cutoff
+// is a parameter rather than a convention so the restriction is testable.
+
+USE GRAPH FraudLens
+
+// ---------------------------------------------------------------------------
+// get_case_anchor
+// Confirms the trigger actually hangs together: that the flagged transaction
+// exists, belongs to the named card, and that the card belongs to the named
+// customer. A case whose anchor cannot be confirmed is rejected at intake
+// rather than investigated on a false premise.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_case_anchor(
+  STRING txn_id,
+  STRING card_id,
+  STRING customer_id
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SetAccum<STRING> @@errors;
+  SumAccum<INT> @@found;
+
+  Txn = {Transaction.*};
+  Anchor = SELECT t FROM Txn:t WHERE t.txn_id == txn_id
+           ACCUM @@found += 1;
+
+  IF @@found == 0 THEN
+    @@errors += "flagged transaction not found";
+  END;
+
+  // Walk the ownership chain rather than trusting the supplied IDs.
+  Owner = SELECT c FROM Anchor:t -(MADE_BY>)- Card:c
+          ACCUM CASE WHEN c.card_id != card_id THEN
+            @@errors += "flagged transaction is not on the supplied card"
+          END;
+
+  Cust = SELECT cu FROM Owner:c -(OWNED_BY>)- Customer:cu
+         ACCUM CASE WHEN cu.customer_id != customer_id THEN
+           @@errors += "supplied card does not belong to the supplied customer"
+         END;
+
+  PRINT Anchor[
+    Anchor.txn_id AS txn_id, Anchor.ts AS ts, Anchor.amount AS amount,
+    Anchor.product_cd AS product_cd, Anchor.channel AS channel,
+    Anchor.risk_score AS risk_score, Anchor.addr1 AS addr1, Anchor.addr2 AS addr2,
+    Anchor.p_email AS p_email, Anchor.r_email AS r_email,
+    Anchor.device_profile_id AS device_profile_id,
+    Anchor.device_is_new AS device_is_new, Anchor.proxy_status AS proxy_status,
+    Anchor.match_status AS match_status
+  ] AS anchor;
+  PRINT Owner[Owner.card_id AS card_id, Owner.card_type AS card_type,
+              Owner.card_network AS card_network, Owner.observed_from AS observed_from,
+              Owner.txn_count AS txn_count, Owner.avg_amount AS avg_amount] AS card;
+  PRINT Cust[Cust.customer_id AS customer_id, Cust.first_seen AS first_seen,
+             Cust.card_count AS card_count, Cust.txn_count AS txn_count,
+             Cust.avg_amount AS avg_amount, Cust.home_region AS home_region] AS customer;
+  PRINT @@errors AS integrity_errors;
+}
+
+// ---------------------------------------------------------------------------
+// get_card_window
+// The ordered activity around the anchor. This is the query that shows an
+// analyst what actually happened: sequence, gaps, amounts, channels, regions,
+// and devices, bounded both by time and by result count.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_card_window(
+  STRING card_id,
+  DATETIME anchor_ts,
+  INT hours_before,
+  INT hours_after,
+  DATETIME cutoff,
+  INT max_results
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<
+    STRING txn_id, DATETIME ts, DOUBLE amount, STRING product_cd,
+    STRING channel, DOUBLE risk_score, STRING addr1, STRING p_email,
+    STRING device_profile_id, BOOL device_is_new, STRING proxy_status,
+    DOUBLE hours_since_prev
+  > TxnRow;
+
+  HeapAccum<TxnRow>(1000, ts ASC) @@window;
+  SumAccum<INT> @@online_count;
+  SumAccum<INT> @@in_person_count;
+  SumAccum<DOUBLE> @@total_amount;
+  SetAccum<STRING> @@devices;
+  SetAccum<STRING> @@regions;
+
+  DATETIME window_start = datetime_add(anchor_ts, INTERVAL -hours_before HOUR);
+  DATETIME window_end = datetime_add(anchor_ts, INTERVAL hours_after HOUR);
+  // Never look past the decision time, whatever the caller asked for.
+  DATETIME effective_end = window_end;
+  IF datetime_diff(window_end, cutoff) > 0 THEN
+    effective_end = cutoff;
+  END;
+
+  Start = {Card.*};
+  Cards = SELECT c FROM Start:c WHERE c.card_id == card_id;
+
+  Txns = SELECT t FROM Cards:c -(MADE>)- Transaction:t
+         WHERE datetime_diff(t.ts, window_start) >= 0
+           AND datetime_diff(effective_end, t.ts) >= 0
+         ACCUM
+           @@window += TxnRow(
+             t.txn_id, t.ts, t.amount, t.product_cd, t.channel, t.risk_score,
+             t.addr1, t.p_email, t.device_profile_id, t.device_is_new,
+             t.proxy_status, t.hours_since_prev),
+           @@total_amount += abs(t.amount),
+           CASE WHEN t.channel == "online" THEN @@online_count += 1
+                ELSE @@in_person_count += 1 END,
+           CASE WHEN t.device_profile_id != "" THEN @@devices += t.device_profile_id END,
+           CASE WHEN t.addr1 != "" THEN @@regions += t.addr1 END
+         LIMIT max_results;
+
+  PRINT @@window AS window;
+  PRINT @@online_count AS online_count, @@in_person_count AS in_person_count;
+  PRINT @@total_amount AS total_amount;
+  PRINT @@devices AS devices, @@regions AS regions;
+  PRINT window_start AS window_start, effective_end AS window_end;
+}
+
+// ---------------------------------------------------------------------------
+// get_customer_baseline
+// What normal looks like for this cardholder before the cutoff. Without a
+// baseline, "unusual amount" and "novel region" are opinions; with one they
+// are measurements.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_customer_baseline(
+  STRING customer_id,
+  DATETIME cutoff,
+  INT lookback_days
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@txn_count;
+  SumAccum<DOUBLE> @@amount_sum;
+  SumAccum<DOUBLE> @@amount_sq_sum;
+  SumAccum<DOUBLE> @@max_amount;
+  SumAccum<INT> @@online_count;
+  SumAccum<INT> @@in_person_count;
+  SetAccum<STRING> @@regions;
+  SetAccum<STRING> @@products;
+  SetAccum<STRING> @@devices;
+  SetAccum<STRING> @@email_domains;
+  MapAccum<STRING, INT> @@region_counts;
+  MapAccum<STRING, INT> @@product_counts;
+
+  DATETIME lookback_start = datetime_add(cutoff, INTERVAL -lookback_days DAY);
+
+  Start = {Customer.*};
+  Cust = SELECT c FROM Start:c WHERE c.customer_id == customer_id;
+  Cards = SELECT cd FROM Cust:c -(OWNS>)- Card:cd;
+
+  Txns = SELECT t FROM Cards:cd -(MADE>)- Transaction:t
+         // Strictly before the cutoff: the flagged transaction itself is not
+         // part of the baseline it is being compared against.
+         WHERE datetime_diff(cutoff, t.ts) > 0
+           AND datetime_diff(t.ts, lookback_start) >= 0
+         ACCUM
+           @@txn_count += 1,
+           @@amount_sum += abs(t.amount),
+           @@amount_sq_sum += abs(t.amount) * abs(t.amount),
+           @@max_amount += 0,
+           CASE WHEN t.channel == "online" THEN @@online_count += 1
+                ELSE @@in_person_count += 1 END,
+           CASE WHEN t.addr1 != "" THEN
+             @@regions += t.addr1, @@region_counts += (t.addr1 -> 1) END,
+           @@products += t.product_cd,
+           @@product_counts += (t.product_cd -> 1),
+           CASE WHEN t.device_profile_id != "" THEN @@devices += t.device_profile_id END,
+           CASE WHEN t.p_email != "" THEN @@email_domains += t.p_email END;
+
+  DOUBLE mean_amount = 0.0;
+  DOUBLE std_amount = 0.0;
+  IF @@txn_count > 0 THEN
+    mean_amount = @@amount_sum / @@txn_count;
+    std_amount = sqrt(@@amount_sq_sum / @@txn_count - mean_amount * mean_amount);
+  END;
+
+  PRINT @@txn_count AS txn_count;
+  PRINT mean_amount AS mean_amount, std_amount AS std_amount;
+  PRINT @@online_count AS online_count, @@in_person_count AS in_person_count;
+  PRINT @@regions AS known_regions, @@region_counts AS region_counts;
+  PRINT @@products AS known_products, @@product_counts AS product_counts;
+  PRINT @@devices AS known_devices, @@email_domains AS known_email_domains;
+  PRINT lookback_start AS lookback_start, cutoff AS cutoff;
+}

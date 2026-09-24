@@ -1,0 +1,292 @@
+// FraudLens graph schema for the TigerGraph Agentic Fraud Investigation task.
+//
+// Design notes
+//   * External IDs stay STRING even where the CSV renders them as integers, so
+//     TransactionID 3514030 can never be silently rewritten as a number.
+//   * The 400+ raw Vesta columns are NOT vertices. Entities that drive
+//     traversal become vertices; wide unnamed features stay as transaction
+//     attributes and are cited honestly as unnamed model signals.
+//   * Every vertex that participates in time-gated retrieval carries an
+//     explicit timestamp so a query can enforce a case decision-time cutoff.
+//
+// Run with:  gsql -g FraudLens graph/schema/01-schema.gsql
+
+CREATE GRAPH FraudLens()
+
+USE GRAPH FraudLens
+
+CREATE SCHEMA_CHANGE JOB fraudlens_base_schema FOR GRAPH FraudLens {
+
+  // ----------------------------------------------------------------------
+  // Core entities
+  // ----------------------------------------------------------------------
+
+  ADD VERTEX Customer (
+    PRIMARY_ID customer_id STRING,
+    first_seen DATETIME,
+    last_seen DATETIME,
+    card_count INT DEFAULT 0,
+    txn_count INT DEFAULT 0,
+    total_amount DOUBLE DEFAULT 0.0,
+    avg_amount DOUBLE DEFAULT 0.0,
+    home_region STRING DEFAULT ""
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  // card_id is the supplied format C01234-K1, derived deterministically from
+  // (customer_id, raw card6) because transactions.csv does not carry it.
+  // See docs/decisions/0006-card-identity-derivation.md.
+  ADD VERTEX Card (
+    PRIMARY_ID card_id STRING,
+    customer_id STRING,
+    card_ordinal INT DEFAULT 1,
+    card_type STRING DEFAULT "",
+    card_network STRING DEFAULT "",
+    card1 STRING DEFAULT "",
+    card2 STRING DEFAULT "",
+    card3 STRING DEFAULT "",
+    card5 STRING DEFAULT "",
+    observed_from DATETIME,
+    observed_to DATETIME,
+    txn_count INT DEFAULT 0,
+    avg_amount DOUBLE DEFAULT 0.0
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX Transaction (
+    PRIMARY_ID txn_id STRING,
+    customer_id STRING,
+    card_id STRING,
+    ts DATETIME,
+    transaction_dt INT,
+    amount DOUBLE,
+    product_cd STRING,
+    channel STRING,
+    risk_score DOUBLE,
+    addr1 STRING DEFAULT "",
+    addr2 STRING DEFAULT "",
+    dist1 DOUBLE DEFAULT -1.0,
+    p_email STRING DEFAULT "",
+    r_email STRING DEFAULT "",
+    device_profile_id STRING DEFAULT "",
+    device_is_new BOOL DEFAULT 0,
+    proxy_status STRING DEFAULT "",
+    match_status STRING DEFAULT "",
+    // Selected unnamed Vesta signals kept under their original names. They are
+    // model features with no published meaning and must be cited as such.
+    c1 DOUBLE DEFAULT -1.0,
+    c13 DOUBLE DEFAULT -1.0,
+    c14 DOUBLE DEFAULT -1.0,
+    d1 DOUBLE DEFAULT -1.0,
+    d2 DOUBLE DEFAULT -1.0,
+    d15 DOUBLE DEFAULT -1.0,
+    m4 STRING DEFAULT "",
+    // Derived, versioned features. Formula and version live in the feature
+    // registry; a value whose lineage crosses the case cutoff is invalid.
+    hours_since_prev DOUBLE DEFAULT -1.0,
+    amount_zscore DOUBLE DEFAULT 0.0,
+    is_novel_region BOOL DEFAULT 0,
+    is_novel_product BOOL DEFAULT 0
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  // ----------------------------------------------------------------------
+  // Shared-origin entities: how separate cards turn out to be one incident
+  // ----------------------------------------------------------------------
+
+  // device_id is a deterministic hash of normalized DeviceInfo + OS + browser
+  // + screen, so the same physical profile always lands on the same vertex.
+  ADD VERTEX DeviceProfile (
+    PRIMARY_ID device_id STRING,
+    readable STRING,
+    device_info STRING DEFAULT "",
+    device_type STRING DEFAULT "",
+    os STRING DEFAULT "",
+    browser STRING DEFAULT "",
+    screen STRING DEFAULT "",
+    proxy_status STRING DEFAULT "",
+    first_seen DATETIME,
+    last_seen DATETIME,
+    card_fanout INT DEFAULT 0,
+    customer_fanout INT DEFAULT 0
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX EmailDomain (
+    PRIMARY_ID domain STRING,
+    purchaser_count INT DEFAULT 0,
+    recipient_count INT DEFAULT 0
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX BillingRegion (
+    PRIMARY_ID region_code STRING,
+    country_code STRING DEFAULT "",
+    card_count INT DEFAULT 0,
+    txn_count INT DEFAULT 0
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  // ----------------------------------------------------------------------
+  // FraudCase memory
+  // ----------------------------------------------------------------------
+
+  // One FraudCase vertex type carries both the bank's closed history and this
+  // agent's own cases. `source` and `trust_tier` keep them distinguishable so
+  // an agent-derived conclusion is never cited with the authority of the
+  // bank's labelled truth.
+  ADD VERTEX FraudCase (
+    PRIMARY_ID case_id STRING,
+    source STRING,              // closed_history | benchmark | agent
+    trust_tier STRING,          // labeled_history | agent_derived | benchmark_open
+    customer_id STRING DEFAULT "",
+    card_id STRING DEFAULT "",
+    opened_at DATETIME,
+    closed_at DATETIME,
+    status STRING DEFAULT "open",
+    verdict STRING DEFAULT "",
+    outcome STRING DEFAULT "",
+    pattern STRING DEFAULT "",
+    pattern_description STRING DEFAULT "",
+    fraud_probability DOUBLE DEFAULT 0.0,
+    exposure_usd DOUBLE DEFAULT 0.0,
+    n_txns INT DEFAULT 0,
+    report_filed BOOL DEFAULT 0,
+    trigger_type STRING DEFAULT "",
+    trigger_text STRING DEFAULT "",
+    stop_reason STRING DEFAULT "",
+    summary STRING DEFAULT "",
+    analyst_notes STRING DEFAULT "",
+    actions_taken STRING DEFAULT "",
+    run_id STRING DEFAULT "",
+    bundle_hash STRING DEFAULT "",
+    // TigerVector attribute for semantic prior-case retrieval.
+    notes_embedding LIST<DOUBLE>
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX Evidence (
+    PRIMARY_ID evidence_id STRING,   // deterministic: <case_id>:<sequence>
+    case_id STRING,
+    seq INT,
+    claim STRING,
+    source STRING,                   // graph | document | customer | external
+    ref STRING,
+    direction STRING,                // supports_fraud | supports_legitimate | context
+    source_family STRING DEFAULT "",
+    collected_at DATETIME,
+    cutoff DATETIME,
+    query_version STRING DEFAULT "",
+    result_hash STRING DEFAULT ""
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX EvidenceRequest (
+    PRIMARY_ID request_id STRING,    // deterministic: <case_id>:req:<n>
+    case_id STRING,
+    request_no INT,
+    req_type STRING,                 // customer_validation | step_up_auth | analyst_info
+    asked_after_step INT,
+    reason STRING DEFAULT "",
+    assumed_response STRING DEFAULT "",
+    simulated BOOL DEFAULT 1,
+    simulator_version STRING DEFAULT "",
+    requested_at DATETIME
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX ActionDecision (
+    PRIMARY_ID decision_id STRING,   // deterministic: <case_id>:<stage>:<order>
+    case_id STRING,
+    stage STRING,                    // initial | final
+    ordinal INT,
+    action STRING,
+    route STRING,                    // auto | L1 | L2
+    reason STRING,
+    state STRING DEFAULT "recommended",
+    approver STRING DEFAULT "",
+    approved_at DATETIME,
+    rule_ids STRING DEFAULT ""
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  // ----------------------------------------------------------------------
+  // Knowledge for GraphRAG
+  // ----------------------------------------------------------------------
+
+  ADD VERTEX Document (
+    PRIMARY_ID doc_id STRING,        // content hash
+    title STRING,
+    issuer STRING DEFAULT "",
+    source_url STRING DEFAULT "",
+    doc_type STRING DEFAULT "",      // policy | typology | regulatory
+    version STRING DEFAULT "",
+    retrieved_on DATETIME
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX DocumentChunk (
+    PRIMARY_ID chunk_id STRING,      // <doc_id>:<index>
+    doc_id STRING,
+    chunk_index INT,
+    section STRING DEFAULT "",
+    text STRING,
+    token_count INT DEFAULT 0,
+    embedding LIST<DOUBLE>
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  ADD VERTEX PolicyRule (
+    PRIMARY_ID rule_id STRING,       // R1..R10, 3a, 4, 5, 6, 7
+    policy_version STRING,
+    title STRING,
+    text STRING
+  ) WITH PRIMARY_ID_AS_ATTRIBUTE="true";
+
+  // ----------------------------------------------------------------------
+  // Edges
+  // ----------------------------------------------------------------------
+
+  ADD DIRECTED EDGE OWNS (FROM Customer, TO Card,
+    observed_from DATETIME, observed_to DATETIME) WITH REVERSE_EDGE="OWNED_BY";
+
+  ADD DIRECTED EDGE MADE (FROM Card, TO Transaction,
+    ts DATETIME, amount DOUBLE) WITH REVERSE_EDGE="MADE_BY";
+
+  ADD DIRECTED EDGE FROM_DEVICE (FROM Transaction, TO DeviceProfile,
+    ts DATETIME, is_new BOOL, proxy_status STRING) WITH REVERSE_EDGE="DEVICE_USED_BY";
+
+  ADD DIRECTED EDGE PURCHASER_EMAIL (FROM Transaction, TO EmailDomain,
+    ts DATETIME) WITH REVERSE_EDGE="PURCHASER_EMAIL_OF";
+
+  ADD DIRECTED EDGE RECIPIENT_EMAIL (FROM Transaction, TO EmailDomain,
+    ts DATETIME) WITH REVERSE_EDGE="RECIPIENT_EMAIL_OF";
+
+  ADD DIRECTED EDGE BILLED_IN (FROM Transaction, TO BillingRegion,
+    ts DATETIME) WITH REVERSE_EDGE="BILLING_REGION_OF";
+
+  // Ordered spine within a card, so a window query is a walk rather than a scan.
+  ADD DIRECTED EDGE NEXT (FROM Transaction, TO Transaction,
+    gap_seconds INT, card_id STRING) WITH REVERSE_EDGE="PREV";
+
+  ADD DIRECTED EDGE ABOUT_CUSTOMER (FROM FraudCase, TO Customer) WITH REVERSE_EDGE="CUSTOMER_CASE";
+  ADD DIRECTED EDGE ON_CARD (FROM FraudCase, TO Card,
+    role STRING) WITH REVERSE_EDGE="CARD_CASE";
+  ADD DIRECTED EDGE INVOLVES (FROM FraudCase, TO Transaction,
+    affected BOOL, role STRING) WITH REVERSE_EDGE="INVOLVED_IN";
+  ADD DIRECTED EDGE CONNECTED_TO (FROM FraudCase, TO Card,
+    link_reason STRING) WITH REVERSE_EDGE="CONNECTED_FROM";
+  ADD DIRECTED EDGE CONNECTED_DEVICE (FROM FraudCase, TO DeviceProfile,
+    evidence_id STRING, link_count INT) WITH REVERSE_EDGE="DEVICE_IN_CASE";
+
+  ADD DIRECTED EDGE SIMILAR_TO (FROM FraudCase, TO FraudCase,
+    structural_score DOUBLE, semantic_score DOUBLE, fused_score DOUBLE,
+    retrieved_at DATETIME) WITH REVERSE_EDGE="SIMILAR_FROM";
+
+  ADD DIRECTED EDGE HAS_EVIDENCE (FROM FraudCase, TO Evidence,
+    seq INT) WITH REVERSE_EDGE="EVIDENCE_OF";
+  ADD DIRECTED EDGE REQUESTED (FROM FraudCase, TO EvidenceRequest,
+    step INT) WITH REVERSE_EDGE="REQUESTED_BY";
+  ADD DIRECTED EDGE RECOMMENDS (FROM FraudCase, TO ActionDecision,
+    stage STRING) WITH REVERSE_EDGE="RECOMMENDED_IN";
+
+  ADD DIRECTED EDGE SUPPORTS_TXN (FROM Evidence, TO Transaction,
+    relation STRING) WITH REVERSE_EDGE="SUPPORTED_BY";
+  ADD DIRECTED EDGE CITES (FROM Evidence, TO DocumentChunk,
+    score DOUBLE) WITH REVERSE_EDGE="CITED_BY";
+  ADD DIRECTED EDGE CONTAINS (FROM Document, TO DocumentChunk,
+    chunk_index INT) WITH REVERSE_EDGE="CONTAINED_IN";
+  ADD DIRECTED EDGE JUSTIFIES (FROM PolicyRule, TO ActionDecision,
+    rule_version STRING) WITH REVERSE_EDGE="JUSTIFIED_BY";
+}
+
+RUN SCHEMA_CHANGE JOB fraudlens_base_schema
+DROP JOB fraudlens_base_schema

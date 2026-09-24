@@ -71,3 +71,12 @@ knowledge/raw/*.pdf
 *.gsql.bak
 *.tgz
 *.tar.gz
+
+# Generated synthetic fixture data
+data/fixtures/generated/
+
+# Web build output
+apps/web/dist/
+
+# Downloaded dataset folder (same files as data/raw/)
+HHGOA_IEEE/
