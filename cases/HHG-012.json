@@ -1,0 +1,122 @@
+{
+  "case_id": "HHG-012",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.08,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "Flagged transaction 3553342 for $30.91 on 2016-12-18 04:00:31 is confirmed on card C05876-K2 held by customer C05876",
+        "source": "graph",
+        "ref": "query:get_case_anchor(card_id=C05876-K2, customer_id=C05876, txn_id=3553342)",
+        "entity_ids": [
+          "3553342",
+          "C05876-K2"
+        ]
+      },
+      {
+        "claim": "Cardholder C05876 has 914 prior transactions before the cutoff, averaging $82.31, across 42 billing region(s)",
+        "source": "graph",
+        "ref": "query:get_customer_baseline(customer_id=C05876, lookback_days=180)",
+        "entity_ids": [
+          "C05876"
+        ]
+      },
+      {
+        "claim": "No cardholder connection was drawn from device profile 'Windows | Windows 10 | chrome 65.0 | 1920x1080': the profile is shared by 299 customers, which makes it a common configuration rather than an identifying device",
+        "source": "graph",
+        "ref": "derived:device_specificity",
+        "entity_ids": []
+      },
+      {
+        "claim": "The flagged amount $30.91 is within two standard deviations of the cardholder's $82.31 average, so the amount alone is not unusual for this account",
+        "source": "graph",
+        "ref": "derived:baseline_comparison",
+        "entity_ids": [
+          "3553342"
+        ]
+      },
+      {
+        "claim": "5 comparable closed case(s) were retrieved (4 confirmed fraud, 1 cleared); closest link: same customer",
+        "source": "graph",
+        "ref": "query:find_similar_cases(card_id=C05876-K2, customer_id=C05876, device_ids=['D4f5669ca9c6c5b5c', 'De450929a6ecb660c', 'D52ccbaf0a91f5926', 'D6f6ebd3e8b2a60d5', 'D2e84b076edb61300'], max_cases=5, pattern_hint=none)",
+        "entity_ids": [
+          "CC-2370",
+          "CC-0003",
+          "CC-5446",
+          "CC-5455",
+          "CC-5481"
+        ]
+      },
+      {
+        "claim": "Customer confirms they made this purchase and recognises the merchant.",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2370",
+      "CC-0003",
+      "CC-5446",
+      "CC-5455",
+      "CC-5481"
+    ],
+    "summary": "Assessed as legitimate at fraud probability 0.08; the activity is consistent with the cardholder's own history. 5 comparable closed case(s) were retrieved (4 confirmed fraud, 1 cleared); closest link: same customer. Against that, the flagged amount $30.91 is within two standard deviations of the cardholder's $82.31 average, so the amount alone is not unusual for this account.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-HHG-012"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Customer confirms they made this purchase and recognises the merchant."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: fraud probability 0.46 reaches 0.30"
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Verdict uncertain at probability 0.46: raise monitoring while the question stays open"
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: evidence was requested during the investigation"
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "R3: cardholder confirmed they made the transaction"
+      }
+    ],
+    "what_changed": "The cardholder confirmed the transaction, moving probability from 0.46 to 0.08. Added: CLOSE_NO_FRAUD. Withdrawn: MONITOR_CARD."
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: fraud is not confirmed or strongly suspected, so no report is due",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "The verification response settled the authorization question, and the episode scope and connected cards are known.",
+  "tool_calls": 24,
+  "tokens": 0,
+  "latency_s": 7.47
+}

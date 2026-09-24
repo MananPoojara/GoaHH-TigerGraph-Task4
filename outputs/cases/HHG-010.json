@@ -1,0 +1,142 @@
+{
+  "case_id": "HHG-010",
+  "case": {
+    "status": "escalated",
+    "verdict": "uncertain",
+    "fraud_probability": 0.49,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3506725"
+    ],
+    "first_suspicious_txn_id": "3506725",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 1000.03,
+    "evidence": [
+      {
+        "claim": "Flagged transaction 3506725 for $1,000.03 on 2016-12-02 15:18:27 is confirmed on card C10434-K1 held by customer C10434",
+        "source": "graph",
+        "ref": "query:get_case_anchor(card_id=C10434-K1, customer_id=C10434, txn_id=3506725)",
+        "entity_ids": [
+          "3506725",
+          "C10434-K1"
+        ]
+      },
+      {
+        "claim": "Cardholder C10434 has 34 prior transactions before the cutoff, averaging $156.80, across 6 billing region(s)",
+        "source": "graph",
+        "ref": "query:get_customer_baseline(customer_id=C10434, lookback_days=180)",
+        "entity_ids": [
+          "C10434"
+        ]
+      },
+      {
+        "claim": "1 online transaction(s) on card C10434-K1 came from a device profile marked New for this account",
+        "source": "graph",
+        "ref": "query:detect_cnp_burst(card_id=C10434-K1, window_hours=48)",
+        "entity_ids": [
+          "3506725"
+        ]
+      },
+      {
+        "claim": "No cardholder connection was drawn from device profile 'Windows | Windows 10 | edge 16.0 | 1366x768': the profile is shared by 185 customers, which makes it a common configuration rather than an identifying device",
+        "source": "graph",
+        "ref": "derived:device_specificity",
+        "entity_ids": []
+      },
+      {
+        "claim": "Only one online transaction appears in the window and no other card shares its origin, so the activity does not form a burst",
+        "source": "graph",
+        "ref": "derived:isolated_transaction",
+        "entity_ids": [
+          "3506725"
+        ]
+      },
+      {
+        "claim": "5 comparable closed case(s) were retrieved (3 confirmed fraud, 2 cleared); closest link: same customer",
+        "source": "graph",
+        "ref": "query:find_similar_cases(card_id=C10434-K1, customer_id=C10434, device_ids=['D2962433c1551cd91', 'D336349bd05f1808e'], max_cases=5, pattern_hint=none)",
+        "entity_ids": [
+          "CC-0873",
+          "CC-1034",
+          "CC-2720",
+          "CC-3219",
+          "CC-3549"
+        ]
+      },
+      {
+        "claim": "No response received from the cardholder within 24 hours of contact.",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0873",
+      "CC-1034",
+      "CC-2720",
+      "CC-3219",
+      "CC-3549"
+    ],
+    "summary": "Assessment is uncertain at probability 0.49; the evidence does not settle whether the activity was authorized. 1 online transaction(s) on card C10434-K1 came from a device profile marked New for this account. 5 comparable closed case(s) were retrieved (3 confirmed fraud, 2 cleared); closest link: same customer. Against that, only one online transaction appears in the window and no other card shares its origin, so the activity does not form a burst. 1 transaction(s) totalling $1,000.03 are attributed to the episode.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-HHG-010"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "No response received from the cardholder within 24 hours of contact."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: fraud probability 0.49 reaches 0.30"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: verdict uncertain with exposure $1,000.03 over $500"
+      }
+    ],
+    "final": [
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline pending authorizations while the cardholder is unreachable"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: fraud probability 0.49 reaches 0.30"
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: no cardholder reply within 24 hours"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R4: exposure $1,000.03 exceeds $500 with no reply"
+      }
+    ],
+    "what_changed": "The cardholder did not reply within 24 hours, moving probability from 0.49 to 0.49. Added: DECLINE_TRANSACTION, MONITOR_CARD."
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: fraud is not confirmed or strongly suspected, so no report is due",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "The case remains uncertain at probability 0.49. Further automated evidence would not change the recommended actions, so it is handed to an analyst rather than investigated further.",
+  "tool_calls": 28,
+  "tokens": 0,
+  "latency_s": 0.37
+}
