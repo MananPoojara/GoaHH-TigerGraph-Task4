@@ -1,0 +1,386 @@
+{
+  "case_id": "HHG-011",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.88,
+    "pattern": "card_testing",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3578817",
+      "3578995",
+      "3578997",
+      "3579400",
+      "3579407",
+      "3579576",
+      "3579597",
+      "3580137",
+      "3580202",
+      "3580219",
+      "3580232",
+      "3580348",
+      "3580380",
+      "3580403",
+      "3580417",
+      "3580427",
+      "3580478",
+      "3580544",
+      "3580712",
+      "3580765",
+      "3580776",
+      "3580815",
+      "3580821",
+      "3580907",
+      "3580933"
+    ],
+    "first_suspicious_txn_id": "3578817",
+    "connected_card_ids": [
+      "C07761-K1",
+      "C00294-K2",
+      "C05031-K2",
+      "C05381-K2",
+      "C08962-K2",
+      "C11509-K2",
+      "C04597-K2",
+      "C08391-K2"
+    ],
+    "connected_device_profiles": [
+      "SM-G955F Build/R16NW | unknown | chrome 66.0 for android | unknown"
+    ],
+    "exposure_usd": 1034.17,
+    "evidence": [
+      {
+        "claim": "Flagged transaction 3583368 for $131.30 on 2016-12-29 03:27:44 is confirmed on card C11923-K2 held by customer C11923",
+        "source": "graph",
+        "ref": "query:get_case_anchor(card_id=C11923-K2, customer_id=C11923, txn_id=3583368)",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Cardholder C11923 has 10315 prior transactions before the cutoff, averaging $39.45, across 32 billing region(s)",
+        "source": "graph",
+        "ref": "query:get_customer_baseline(customer_id=C11923, lookback_days=180)",
+        "entity_ids": [
+          "C11923"
+        ]
+      },
+      {
+        "claim": "3 online authorizations at or under $5.00 occurred on card C11923-K2 within 24 hours, followed by 25 larger purchase(s)",
+        "source": "graph",
+        "ref": "query:detect_card_testing(card_id=C11923-K2, small_amount_max=5.0, window_hours=24)",
+        "entity_ids": [
+          "3582624",
+          "3582175",
+          "3582142",
+          "3583101",
+          "3583406",
+          "3582375",
+          "3582413",
+          "3582671",
+          "3582738",
+          "3582868",
+          "3582178",
+          "3583411",
+          "3583435",
+          "3583229",
+          "3582107",
+          "3583199",
+          "3582897",
+          "3583417",
+          "3581345",
+          "3582327",
+          "3582082",
+          "3581048",
+          "3583415",
+          "3583368",
+          "3582602",
+          "3583348",
+          "3583140",
+          "3582338"
+        ]
+      },
+      {
+        "claim": "24 online transaction(s) on card C11923-K2 came from a device profile marked New for this account",
+        "source": "graph",
+        "ref": "query:detect_cnp_burst(card_id=C11923-K2, window_hours=48)",
+        "entity_ids": [
+          "3578817",
+          "3579597",
+          "3580380",
+          "3580403",
+          "3580417",
+          "3580478",
+          "3580544",
+          "3580712",
+          "3580765",
+          "3580776",
+          "3580815",
+          "3580907",
+          "3581048",
+          "3582338",
+          "3582375",
+          "3582413",
+          "3582738",
+          "3582868",
+          "3583101",
+          "3583229",
+          "3583368",
+          "3583406",
+          "3583411",
+          "3583435"
+        ]
+      },
+      {
+        "claim": "Device profile 'SM-G955F Build/R16NW | unknown | chrome 66.0 for android | unknown' was used by 8 other card(s) within the window, of which 8 already carry confirmed fraud across 108 closed case(s)",
+        "source": "graph",
+        "ref": "query:get_shared_origin_ring(exclude_card_id=C11923-K2, max_cards=50, origin_id=Dff761543386fadb3, origin_kind=device, window_hours=720)",
+        "entity_ids": [
+          "C07761-K1",
+          "C00294-K2",
+          "C05031-K2",
+          "C05381-K2",
+          "C08962-K2",
+          "C11509-K2",
+          "C04597-K2",
+          "C08391-K2",
+          "CC-4058",
+          "CC-0750",
+          "CC-4669",
+          "CC-1241",
+          "CC-3626",
+          "CC-3597",
+          "CC-1235",
+          "CC-0700",
+          "CC-0928",
+          "CC-1195",
+          "CC-1367",
+          "CC-4533",
+          "CC-3933",
+          "CC-3358",
+          "CC-1747",
+          "CC-2125",
+          "CC-5536",
+          "CC-4832",
+          "CC-4497",
+          "CC-4800",
+          "CC-4099",
+          "CC-2154",
+          "CC-4065",
+          "CC-2198",
+          "CC-3271",
+          "CC-3653",
+          "CC-3551",
+          "CC-3553",
+          "CC-0976",
+          "CC-5187",
+          "CC-2506",
+          "CC-2415",
+          "CC-4710",
+          "CC-4472",
+          "CC-3288",
+          "CC-3827",
+          "CC-4624",
+          "CC-2928",
+          "CC-5122",
+          "CC-2437",
+          "CC-3308",
+          "CC-3123",
+          "CC-1495",
+          "CC-2480",
+          "CC-4936",
+          "CC-4880",
+          "CC-1032",
+          "CC-3932",
+          "CC-3221",
+          "CC-0073",
+          "CC-0829",
+          "CC-2393",
+          "CC-2634",
+          "CC-2222",
+          "CC-0429",
+          "CC-1663",
+          "CC-5075",
+          "CC-3749",
+          "CC-2721",
+          "CC-2707",
+          "CC-3503",
+          "CC-5328",
+          "CC-5541",
+          "CC-3855",
+          "CC-0211",
+          "CC-1611",
+          "CC-2500",
+          "CC-0404",
+          "CC-1546",
+          "CC-2139",
+          "CC-2729",
+          "CC-0535",
+          "CC-3720",
+          "CC-4856",
+          "CC-3847",
+          "CC-2307",
+          "CC-5171",
+          "CC-1998",
+          "CC-4225",
+          "CC-4772",
+          "CC-2821",
+          "CC-3999",
+          "CC-2838",
+          "CC-2593",
+          "CC-1385",
+          "CC-3415",
+          "CC-5027",
+          "CC-2844",
+          "CC-0206",
+          "CC-2394",
+          "CC-4314",
+          "CC-4479",
+          "CC-1296",
+          "CC-2849",
+          "CC-1948",
+          "CC-0724",
+          "CC-4594",
+          "CC-2775",
+          "CC-1401",
+          "CC-4982",
+          "CC-4977",
+          "CC-3796",
+          "CC-4156",
+          "CC-4293",
+          "CC-2826",
+          "CC-2560",
+          "CC-5461",
+          "CC-5370"
+        ]
+      },
+      {
+        "claim": "The disputed charge matches 12 earlier charge(s) on this card for the same product at the same amount, so it fits the cardholder's own recurring pattern",
+        "source": "graph",
+        "ref": "query:detect_recurring_charge(amount=131.3, amount_tolerance=1.0, card_id=C11923-K2, lookback_days=180, product_cd=C)",
+        "entity_ids": [
+          "3108704",
+          "3193355",
+          "3215582",
+          "3325985",
+          "3377879",
+          "3389493",
+          "3389533",
+          "3389542",
+          "3390485",
+          "3528954"
+        ]
+      },
+      {
+        "claim": "5 comparable closed case(s) were retrieved (4 confirmed fraud, 1 cleared); closest link: same customer",
+        "source": "graph",
+        "ref": "query:find_similar_cases(card_id=C11923-K2, customer_id=C11923, device_ids=['D21dad6fef614661a', 'D2866aa756c167669', 'Dff761543386fadb3', 'Dff761543386fadb3', 'Da18f98fedaed1b77', 'D4df229e86622e288', 'Df74ec6e7fef9f0af', 'D691373df59571994', 'D2866aa756c167669', 'D21dad6fef614661a', 'Ddaca5ed8f825ed63', 'D34048752a0a3b98e', 'D87c15bfeb40762d3', 'D24255d86d2bc3c91', 'D134c408eaf908c65', 'D281693c0e5b93feb', 'D2bd20df8a9534348', 'D8ba726396db624f8', 'D4df229e86622e288', 'De508e056fca18361', 'D134c408eaf908c65', 'D90c76a483c5b3ec2', 'D01483593cab1cf1e', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D2bd20df8a9534348', 'Dfa142018ccbdefe1', 'Dc63226fae6185421', 'D5913cd9923f259d7', 'Dbe5be69f55e91af2', 'D2bd20df8a9534348', 'D1dc950a63c9ba0dd', 'D554adf1e263f42c2', 'Da3ad379a3c165404', 'Da3ad379a3c165404', 'D0bae953fc82abe37', 'Dbe5be69f55e91af2', 'D4e93addffc999df2', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D4df229e86622e288', 'D06a5310404d327a3', 'D6b707bffeb44f6ed', 'D87c15bfeb40762d3', 'Db9fb1b5a153d1f9a', 'D2a32d2e188ac44f6', 'D87c15bfeb40762d3', 'D0447b532ef300fc9', 'D610775a7c95cf441', 'D2a32d2e188ac44f6', 'D871c7fc91479f6d7', 'Da18f98fedaed1b77', 'D7c4743f34b2297e9', 'D18c1df499238b578', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'D6b707bffeb44f6ed', 'Da020c32376d24702', 'D92c6948a4da3b9f6', 'Db8b51aea21bffe71', 'D87c15bfeb40762d3', 'Dabdcaf75cb107b4f', 'Db10ee3100e10a141', 'D085f674b7e9c5ece', 'D0bae953fc82abe37', 'D600d040811afe256', 'Da5dde89e69b5dbdb', 'D0bae953fc82abe37', 'D49b4bb9ba9a8e087', 'D1538d58a3d83681d', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'D41f336d411521ad5', 'D61a416ea178625ce', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Dc63226fae6185421', 'D60a977c891d0ecd1', 'D21dad6fef614661a', 'D134c408eaf908c65', 'D1538d58a3d83681d', 'D4df229e86622e288', 'D636b0fc177c3ddf5', 'D21dad6fef614661a', 'D2a32d2e188ac44f6', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'De4ebd740ad36f88d', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'D2bd20df8a9534348', 'De508e056fca18361', 'D813e1c77f328d3c0', 'D7cd80c9b92b4bba2', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'Dbe5be69f55e91af2', 'D46b28f89b310d02b', 'Da2d063fd901305fe', 'Da3ad379a3c165404', 'Dc5530bc61dae1257', 'D21dad6fef614661a', 'Da9fcaca7419aa399', 'D0bae953fc82abe37', 'Da18f98fedaed1b77', 'Df2a19aeaf111cf4b', 'Dda92c39d7c9b5fc9', 'Da18f98fedaed1b77', 'D5f84cc4ed98dd96e', 'D39d68b419b0263e2', 'Da45fe3b60be688da', 'D0bae953fc82abe37', 'D1dcac63301164575', 'D4f6dcfc327100bc5', 'D1dcac63301164575', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'Dda92c39d7c9b5fc9', 'D41f336d411521ad5', 'D55b3b8be9fae602a', 'Da18f98fedaed1b77', 'D61a416ea178625ce', 'D39d68b419b0263e2', 'D4605041b81347876', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'D576992b1f6b5a622', 'D0f98ac075f62e8cc', 'D64844a6e46cfe058', 'Df79f3ca4c52718a0', 'D87c15bfeb40762d3', 'Dceeba760044b38bc', 'D84207506e9797381', 'D87c15bfeb40762d3', 'D05db56fa0bdcd8a9', 'Dc0a7b6503122b228', 'D21dad6fef614661a', 'Dd8bbecf526a43fec', 'D4dfcedc04b3f1f79', 'Da18f98fedaed1b77', 'D8b7152d4f805d438', 'D1dc950a63c9ba0dd', 'D6b4562b6d934281a', 'Da45fe3b60be688da', 'Da0c946d50fabb293', 'Dc28f951bd8e7ce05', 'D21dad6fef614661a', 'D12cc49e356ed9aa1', 'Da3ad379a3c165404', 'Da2d063fd901305fe', 'D4c0bce943f447286', 'Da18f98fedaed1b77', 'D53db1667dedfa318', 'D7881aece382258b6', 'D87c15bfeb40762d3', 'D6b0a5e23ebb35b91', 'D5aded24df5e18138', 'D3cc769e3c290f23b', 'D3cf6449413b67833', 'D4df229e86622e288', 'D35ab0029b109454c', 'Daad9b076496ebcab', 'D636b0fc177c3ddf5', 'D21dad6fef614661a', 'D39d68b419b0263e2', 'D6a4071e244a55a1e', 'D21dad6fef614661a', 'D813e1c77f328d3c0', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D610775a7c95cf441', 'D85a6006c041ce37d', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D2866aa756c167669', 'D0bae953fc82abe37', 'D87c15bfeb40762d3', 'D134c408eaf908c65', 'D2866aa756c167669', 'Dbe5be69f55e91af2', 'Da3ad379a3c165404', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'D4afd01d198c67848', 'D34048752a0a3b98e', 'D2a32d2e188ac44f6', 'Db2a82548092ad30e', 'D1827244ee8a619fa', 'D1dea19adada8a63f', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Db3b8ef5dafc4eaa8', 'D610775a7c95cf441', 'D1541b14b1a5924b2', 'D281693c0e5b93feb', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Df1b42db48ad188d1', 'D3d331023132184d1', 'Da18f98fedaed1b77', 'D4df229e86622e288', 'D131fb4ec90cc9f8e', 'D6205883593181f1e', 'D87c15bfeb40762d3', 'D4201f4651cdd4b1a', 'D2a32d2e188ac44f6', 'D87c15bfeb40762d3', 'Da1892271fb92654d', 'D928e2f87dd332566', 'Dbe5be69f55e91af2', 'D25b266926cf95c9e', 'D2bd20df8a9534348', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'Dc4ba22a4910bb98d', 'Df79f3ca4c52718a0', 'D39d68b419b0263e2', 'Da18f98fedaed1b77', 'Dff761543386fadb3', 'Da18f98fedaed1b77', 'D6b707bffeb44f6ed', 'Da3ad379a3c165404', 'Df79f3ca4c52718a0', 'D614bb4e186ec10d3', 'D7418996910bc4cb0', 'D21dad6fef614661a', 'D0bae953fc82abe37', 'D3e7b49e8dedaf882', 'De508e056fca18361', 'Da18f98fedaed1b77', 'D8577af0a580a394b', 'D0bae953fc82abe37', 'Da45fe3b60be688da', 'Da45fe3b60be688da', 'De4ebd740ad36f88d', 'D96d8062452b14dff', 'D87c15bfeb40762d3', 'D7e4e3f134f141fd5', 'Dabdcaf75cb107b4f', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D21dad6fef614661a', 'D134c408eaf908c65', 'D7881aece382258b6', 'D134c408eaf908c65', 'D134c408eaf908c65', 'D134c408eaf908c65', 'D2a32d2e188ac44f6', 'D359014e0ca5fcaeb', 'D9c8d0b5b0f46eed0', 'D1fa6d5abfec792a9', 'D2a32d2e188ac44f6', 'D87c15bfeb40762d3', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'D92bd57ea4b1e205b', 'D285211ec1c57cfb3', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Dc5530bc61dae1257', 'D4f00722307186ed1', 'D0f98ac075f62e8cc', 'D8577af0a580a394b', 'D135fdcde5043b0e1', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D8de48cb17bb758a9', 'Da3ad379a3c165404', 'Da3ad379a3c165404', 'D134c408eaf908c65', 'D2866aa756c167669', 'D610775a7c95cf441', 'Da18f98fedaed1b77', 'D0871f4405baa8281', 'Da18f98fedaed1b77', 'Ddbb2b6f66e0138f1', 'D87c15bfeb40762d3', 'Ddaca5ed8f825ed63', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dc0a7b6503122b228', 'Db6c028944f5edd7e', 'D2bd20df8a9534348', 'D39d68b419b0263e2', 'D2bd20df8a9534348', 'D8d1ff657dbf8f127', 'D6a127463f4e97179', 'D46b28f89b310d02b', 'D77749bcbe39e8c5f', 'Da3ad379a3c165404', 'Db27e42e91214ef31', 'D749aac2087728c87', 'D33035465684e78d7', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D6205883593181f1e', 'Da3ad379a3c165404', 'Dd8bbecf526a43fec', 'D49b4bb9ba9a8e087', 'Da45fe3b60be688da', 'Dbe5be69f55e91af2', 'D6b707bffeb44f6ed', 'Dafe9b9e6b397cf5c', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D34048752a0a3b98e', 'D7df9a10e296de3f8', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D2a32d2e188ac44f6', 'Dce0a8a4a381956fe', 'Dce0a8a4a381956fe', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'D90c76a483c5b3ec2', 'D2a32d2e188ac44f6', 'D48bcae8536304fe7', 'D2bd20df8a9534348', 'Da18f98fedaed1b77', 'D2e7c99d2aac9eacf', 'Da18f98fedaed1b77', 'D68d23e8a7b498b4c', 'D46b28f89b310d02b', 'Dc5530bc61dae1257', 'Dbe5be69f55e91af2', 'Da3aab07b2baa4590', 'D76d9a5f1a66e41fc', 'D25770e3e12532916', 'Da3ad379a3c165404', 'Da45fe3b60be688da', 'D8577af0a580a394b', 'D2091115eb002b0da', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D49b4bb9ba9a8e087', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D610775a7c95cf441', 'Da18f98fedaed1b77', 'Dae49086da7231e32', 'Da18f98fedaed1b77', 'D3cc68a759f36ee90', 'Da18f98fedaed1b77', 'D7903d0a523a37606', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D85f6e3af07f71db5', 'D49b4bb9ba9a8e087', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D7de38e44c4351e3b', 'D4201f4651cdd4b1a', 'D87c15bfeb40762d3', 'D45951f15fe2408ec', 'D2a32d2e188ac44f6', 'D87c15bfeb40762d3', 'D02fef29c508cc52c', 'Da18f98fedaed1b77', 'D700cf17b28b5f5c5', 'D0ed896e026d15e13', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'Da18f98fedaed1b77', 'D4b53eee819eb7fbf', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da45fe3b60be688da', 'D69a48810f1faf948', 'Da18f98fedaed1b77', 'Da45fe3b60be688da', 'Da18f98fedaed1b77', 'D0bae953fc82abe37', 'D6b707bffeb44f6ed', 'Da45fe3b60be688da', 'D353c61939514ef19', 'D20e1370ec07ab504', 'D87c15bfeb40762d3', 'D85a6006c041ce37d', 'Df87591c6109001f5', 'Da18f98fedaed1b77', 'D7151da0736498970', 'Da18f98fedaed1b77', 'D2a32d2e188ac44f6', 'Dc18aaaaa44553d34', 'Ddaca5ed8f825ed63', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D2866aa756c167669', 'D24255d86d2bc3c91', 'Dce0a8a4a381956fe', 'Da18f98fedaed1b77', 'D28dcc0fba727eb06', 'D4df229e86622e288', 'D87c15bfeb40762d3', 'D849e20816736181f', 'D21dad6fef614661a', 'D2a32d2e188ac44f6', 'D4df229e86622e288', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dfa142018ccbdefe1', 'D1dcac63301164575', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D3d331023132184d1', 'Db5d344c050da88d6', 'Dc0a7b6503122b228', 'Ddbb2b6f66e0138f1', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D34304ac145473d75', 'D0bae953fc82abe37', 'De2776965dff482e7', 'D0bae953fc82abe37', 'D4dd267b5a177a3a9', 'Da18f98fedaed1b77', 'Db8fc8528317dd828', 'D21dad6fef614661a', 'D473310e4c621c9ff', 'D87c15bfeb40762d3', 'D41f336d411521ad5', 'D87c15bfeb40762d3', 'D34048752a0a3b98e', 'Da3ad379a3c165404', 'D1dcac63301164575', 'Dc7a2fa49bd921e3b', 'Da18f98fedaed1b77', 'D53db1667dedfa318', 'D6205883593181f1e', 'D2866aa756c167669', 'D2866aa756c167669', 'Ddbb2b6f66e0138f1', 'Da18f98fedaed1b77', 'D610775a7c95cf441', 'Df79f3ca4c52718a0', 'Da18f98fedaed1b77', 'Decce0ed65036984f', 'D8b76ebb810d15024', 'Dae49086da7231e32', 'D2a32d2e188ac44f6', 'D134c408eaf908c65', 'D93d3ac1cd85e70c7', 'D87c15bfeb40762d3', 'D0f98ac075f62e8cc', 'Daff6ec4eb7546578', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dfbf53ecd890053e5', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D05db56fa0bdcd8a9', 'D2d625b4310339c38', 'D2bd20df8a9534348', 'D51831051e6c93a63', 'D6205883593181f1e', 'Da18f98fedaed1b77', 'D0449b177383b3788', 'D6b707bffeb44f6ed', 'D87c15bfeb40762d3', 'Da45fe3b60be688da', 'D134c408eaf908c65', 'D3a08d91e58079961', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da45fe3b60be688da', 'D0bae953fc82abe37', 'De35ecb807a44576a', 'D1538d58a3d83681d', 'Db9c1f30919775a07', 'D9fe167a94148c214', 'D7c4743f34b2297e9', 'D41f336d411521ad5', 'D1632d40aefca614a', 'D1dbd473c89ec3041', 'D21dad6fef614661a', 'Df79f3ca4c52718a0', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'D6205883593181f1e', 'D2a32d2e188ac44f6', 'D134c408eaf908c65', 'Dca0f70e6242a5159', 'D87c15bfeb40762d3', 'D131fb4ec90cc9f8e', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'D8f1b00f91df00487', 'D2a32d2e188ac44f6', 'Dc9780d1c2681fada', 'Da18f98fedaed1b77', 'D7903d0a523a37606', 'Df79f3ca4c52718a0', 'D87c15bfeb40762d3', 'Dfd7ce60f4be5a8c4', 'Da18f98fedaed1b77', 'D2bd20df8a9534348', 'D576992b1f6b5a622', 'D21dad6fef614661a', 'D4df229e86622e288', 'Dbe5be69f55e91af2', 'Dcf35e455d76660f4', 'Da18f98fedaed1b77', 'D95a34715a8c53f66', 'D015a25a02f6a0c92', 'D51fd64eb60031b5b', 'Da45fe3b60be688da', 'Da45fe3b60be688da', 'Dba1eee1296403059', 'Da45fe3b60be688da', 'D4be328e9a24a59eb', 'Da45fe3b60be688da', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D7fe36b3698c2046b', 'Df5d0878e4b684654', 'Df7903d4e5e81835d', 'Da45fe3b60be688da', 'D1dcac63301164575', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'D700cf17b28b5f5c5', 'Dc9780d1c2681fada', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'D35ab0029b109454c', 'Da18f98fedaed1b77', 'Df1b42db48ad188d1', 'D2a32d2e188ac44f6', 'D610775a7c95cf441', 'D21dad6fef614661a', 'D2bd20df8a9534348', 'Dc9780d1c2681fada', 'Dfb024c85580990cc', 'D2a32d2e188ac44f6', 'D87c15bfeb40762d3', 'Dbeb9d830755e4d57', 'D5929ddd8fb9d8e34', 'Dfa142018ccbdefe1', 'Df74ec6e7fef9f0af', 'Dab66725e7bc09321', 'Df85f8eea737d3203', 'Dfedb7a2274d6de90', 'D46b28f89b310d02b', 'D87c15bfeb40762d3', 'D00395fb7e6ab22d0', 'Decce0ed65036984f', 'De29aa6203fa28bdb', 'De35ecb807a44576a', 'D6d15d0b7ea9022ba', 'D21dad6fef614661a', 'Dbfff3dadb311550f', 'Da3ad379a3c165404', 'D7878b319d8969117', 'Dd8bbecf526a43fec', 'Df8a7f2b180d647b6', 'D87c15bfeb40762d3', 'D5a16f248eb099cdc', 'Dd8bbecf526a43fec', 'Db10ee3100e10a141', 'D1c7fbc37299a6b6c', 'D87c15bfeb40762d3', 'D6a127463f4e97179', 'D0016a0bb9815d5df', 'Da18f98fedaed1b77', 'Ddbb2b6f66e0138f1', 'D46b28f89b310d02b', 'D87c15bfeb40762d3', 'Dcf35e455d76660f4', 'D39d68b419b0263e2', 'D4201f4651cdd4b1a', 'D691373df59571994', 'D21dad6fef614661a', 'Df79f3ca4c52718a0', 'D2a32d2e188ac44f6', 'D7c4743f34b2297e9', 'D87c15bfeb40762d3', 'Db8fc8528317dd828', 'Df8a7f2b180d647b6', 'D21175e7d087b39aa', 'D531145f55becadc5', 'Df8cdba66f589fc76', 'D6b707bffeb44f6ed', 'D285211ec1c57cfb3', 'D0bae953fc82abe37', 'Da18f98fedaed1b77', 'D1feaa75e22f45a45', 'Dda92c39d7c9b5fc9', 'D21dad6fef614661a', 'Da3ad379a3c165404', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dcf35e455d76660f4', 'Da18f98fedaed1b77', 'D1538d58a3d83681d', 'D285211ec1c57cfb3', 'Decce0ed65036984f', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Ddaca5ed8f825ed63', 'Da18f98fedaed1b77', 'D5913cd9923f259d7', 'D2a32d2e188ac44f6', 'D2091115eb002b0da', 'Dda92c39d7c9b5fc9', 'Da18f98fedaed1b77', 'D76c06dbbcb5fa7b9', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'D41f336d411521ad5', 'D4d339bb8a1c2aa0e', 'D21dad6fef614661a', 'D678fe44787a7cb8f', 'Da18f98fedaed1b77', 'D700cf17b28b5f5c5', 'D49b4bb9ba9a8e087', 'D0871f4405baa8281', 'Dbe5be69f55e91af2', 'Da18f98fedaed1b77', 'Df79f3ca4c52718a0', 'Dbd7b26a40509e86c', 'D87c15bfeb40762d3', 'Ddaca5ed8f825ed63', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D8bd6b8d615244056', 'D1dc950a63c9ba0dd', 'Da18f98fedaed1b77', 'D6b707bffeb44f6ed', 'D134c408eaf908c65', 'D6bf29d4b35b799b0', 'Dd3f09cb6ac088949', 'D6cafa3cd4e8ac286', 'D63327b9dac731c08', 'D6b707bffeb44f6ed', 'D6b707bffeb44f6ed', 'D61a416ea178625ce', 'D1dcac63301164575', 'Da18f98fedaed1b77', 'Dce0a8a4a381956fe', 'D4df229e86622e288', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'D281693c0e5b93feb', 'Dd24f08bc6791616a', 'D84207506e9797381', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'Df7903d4e5e81835d', 'D49b4bb9ba9a8e087', 'D22275370b7105660', 'D2d625b4310339c38', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D1f4dc4dfc1b32fb8', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Df19397695e667ee6', 'D4df229e86622e288', 'Db8fc8528317dd828', 'Dbe5be69f55e91af2', 'D928e2f87dd332566', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'Dbe5be69f55e91af2', 'Dcb00aef316b08b49', 'D6b707bffeb44f6ed', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D0bae953fc82abe37', 'Da45fe3b60be688da', 'D5913cd9923f259d7', 'Da18f98fedaed1b77', 'D8f8ff3933f1dbf18', 'Da3ad379a3c165404', 'D87c15bfeb40762d3', 'D2a32d2e188ac44f6', 'D2c485799f4e536be', 'D87c15bfeb40762d3', 'Df99dfcc51d0341df', 'D6b707bffeb44f6ed', 'D288e58f92ae71795', 'D0bae953fc82abe37', 'D6b707bffeb44f6ed', 'Dce0a8a4a381956fe', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D1dbd473c89ec3041', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D2bd20df8a9534348', 'D87c15bfeb40762d3', 'De41adfa7ac08f6f9', 'D24255d86d2bc3c91', 'D15cc82ad02511ecd', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'D678fe44787a7cb8f', 'Dc9780d1c2681fada', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dbe5be69f55e91af2', 'Dd24f08bc6791616a', 'Dc4bcf6687ae04854', 'D15cc82ad02511ecd', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D84207506e9797381', 'Df79f3ca4c52718a0', 'D0871f4405baa8281', 'Da18f98fedaed1b77', 'D1dc950a63c9ba0dd', 'D1a55385ee171edd5', 'Da3ad379a3c165404', 'D0bae953fc82abe37', 'Dbe5be69f55e91af2', 'D281693c0e5b93feb', 'Dd3750fbe3edd408a', 'Dbe5be69f55e91af2', 'D2a32d2e188ac44f6', 'D2a32d2e188ac44f6', 'Dc5530bc61dae1257', 'Da3ad379a3c165404', 'D87c15bfeb40762d3', 'Db5d344c050da88d6', 'D96d8062452b14dff', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Dd55f0caaa004da44', 'D21dad6fef614661a', 'D281693c0e5b93feb', 'Da018a8b9c8266cbc', 'Da18f98fedaed1b77', 'Db6c028944f5edd7e', 'D7881aece382258b6', 'D15cc82ad02511ecd', 'Df79f3ca4c52718a0', 'D6205883593181f1e', 'D6205883593181f1e', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'Dcdc353672dc9e38a', 'D6a127463f4e97179', 'D87c15bfeb40762d3', 'D7122eaad77776011', 'Df96a83dfb7179d51', 'Db475bce84f53ab38', 'D343545685ddf0583', 'Df65e1e885b837d51', 'Da18f98fedaed1b77', 'D749aac2087728c87', 'D0bae953fc82abe37', 'D05950388f8cee2e2', 'D4df229e86622e288', 'Da18f98fedaed1b77', 'D0bae953fc82abe37', 'D5d111902dcfb1228', 'D1166f81bd1a61174', 'Dc84359407f24ed8f', 'D49b4bb9ba9a8e087', 'Dda92c39d7c9b5fc9', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Dd24f08bc6791616a', 'Db3b8ef5dafc4eaa8', 'Dd8eaeae3b73ca9b7', 'Dabdcaf75cb107b4f', 'Da18f98fedaed1b77', 'D2866aa756c167669', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D21dad6fef614661a', 'Df1b42db48ad188d1', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D317a1d03a996bc5a', 'Dce0a8a4a381956fe', 'D21dad6fef614661a', 'D35ab0029b109454c', 'D0f98ac075f62e8cc', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'D3a36ad9ac2117815', 'D5cfb62d3da6565c2', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D1be34847fa4da6ae', 'Da18f98fedaed1b77', 'D5fc072478895dc91', 'Da18f98fedaed1b77', 'Dcf59d69239d9e690', 'D21dad6fef614661a', 'D134c408eaf908c65', 'D0bae953fc82abe37', 'Da3ad379a3c165404', 'D288e58f92ae71795', 'D7ace0c3c808a49ed', 'D6b707bffeb44f6ed', 'D1da4571117a313c1', 'Da18f98fedaed1b77', 'Df166988dd1d4b858', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D2765c71fe4587c6c', 'D28dcc0fba727eb06', 'Dd50dd40e86800e70', 'Da18f98fedaed1b77', 'D4df229e86622e288', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Df79f3ca4c52718a0', 'Dd57aa380da22cbbe', 'D7c4743f34b2297e9', 'Df79f3ca4c52718a0', 'Df007333a70c268f7', 'Da18f98fedaed1b77', 'Da0dd17be5bda3be1', 'D2a32d2e188ac44f6', 'Dda92c39d7c9b5fc9', 'D2a32d2e188ac44f6', 'D2bd20df8a9534348', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D7c4743f34b2297e9', 'D3cb9de4051875edc', 'D6b707bffeb44f6ed', 'D662de2a06af0eb46', 'Df79f3ca4c52718a0', 'D56bda0b30cdc5857', 'D87c15bfeb40762d3', 'D34048752a0a3b98e', 'D46b28f89b310d02b', 'D61a416ea178625ce', 'D610775a7c95cf441', 'D0bae953fc82abe37', 'D0bae953fc82abe37', 'Ddaca5ed8f825ed63', 'D4df229e86622e288', 'D7e4e3f134f141fd5', 'D0cb454e8c8f29803', 'D7c613f88bb72d5df', 'Dae49086da7231e32', 'Da3ad379a3c165404', 'Da3ad379a3c165404', 'Dca0353775c221d56', 'Dd09684a44ea8cd48', 'Df96a83dfb7179d51', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'D02fef29c508cc52c', 'D28dcc0fba727eb06', 'D87c15bfeb40762d3', 'D377a70459296a34c', 'D6ae2594ef96dc67f', 'D4505b1091bd658a7', 'Df99dfcc51d0341df', 'D4201f4651cdd4b1a', 'Da18f98fedaed1b77', 'D2a32d2e188ac44f6', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'Df79f3ca4c52718a0', 'D87c15bfeb40762d3', 'D134c408eaf908c65', 'D21dad6fef614661a', 'D0f98ac075f62e8cc', 'D2a32d2e188ac44f6', 'D45951f15fe2408ec', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D6b707bffeb44f6ed', 'D01483593cab1cf1e', 'D173ec57d40da0293', 'D87c15bfeb40762d3', 'D7881aece382258b6', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Dbd39a7193eef1b00', 'Da18f98fedaed1b77', 'D8240e0ef2aef2f8b', 'D201cd036b4bab620', 'Df74ec6e7fef9f0af', 'D7d1c5c70b1f1ed02', 'D21dad6fef614661a', 'D21dad6fef614661a', 'D2a32d2e188ac44f6', 'D928e2f87dd332566', 'D00395fb7e6ab22d0', 'Da3ad379a3c165404', 'Df573df3fd144f139', 'D34048752a0a3b98e', 'D0bae953fc82abe37', 'D0bae953fc82abe37', 'Da45fe3b60be688da', 'D8577af0a580a394b', 'D0bae953fc82abe37', 'D0bae953fc82abe37', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D691373df59571994', 'D6205883593181f1e', 'Decce0ed65036984f', 'D6a127463f4e97179', 'D49b4bb9ba9a8e087', 'D41f336d411521ad5', 'D61a416ea178625ce', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'Df79f3ca4c52718a0', 'D6205883593181f1e', 'Dbe5be69f55e91af2', 'D87c15bfeb40762d3', 'D134c408eaf908c65', 'D2a32d2e188ac44f6', 'D1830c693b46fc19d', 'D87c15bfeb40762d3', 'D6bf29d4b35b799b0', 'D46b28f89b310d02b', 'D7de38e44c4351e3b', 'D813e1c77f328d3c0', 'Dbf807daa7cbd2c55', 'D2bd20df8a9534348', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'D6ef29594247e6659', 'D1dcac63301164575', 'D4bf7449f40e93379', 'D00395fb7e6ab22d0', 'D4505b1091bd658a7', 'D2866aa756c167669', 'D12531143c8d0efe2', 'D0bae953fc82abe37', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'D80452e8234a33e18', 'D648a0481247942ef', 'D0bae953fc82abe37', 'D4df229e86622e288', 'D34048752a0a3b98e', 'D0bae953fc82abe37', 'Da3ad379a3c165404', 'D87c15bfeb40762d3', 'D5d212f6f5da1c241', 'D49b4bb9ba9a8e087', 'Dda92c39d7c9b5fc9', 'Da18f98fedaed1b77', 'De81db1adb422dcbd', 'D41f336d411521ad5', 'Dac425dc3b1982a2b', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dff761543386fadb3', 'D35ab0029b109454c', 'D6b707bffeb44f6ed', 'D02fef29c508cc52c', 'Df7903d4e5e81835d', 'D1538d58a3d83681d', 'D7881aece382258b6', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'D134c408eaf908c65', 'Dcf35e455d76660f4', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'D131fb4ec90cc9f8e', 'D8c8427058099738a', 'D20c3458c5ec54342', 'D6a03065c5876b550', 'D783c44bc99384a27', 'Da18f98fedaed1b77', 'D0871f4405baa8281', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D928e2f87dd332566', 'D21dad6fef614661a', 'D94285df623c967e3', 'Da18f98fedaed1b77', 'De2776965dff482e7', 'D21dad6fef614661a', 'D6b707bffeb44f6ed', 'D0bae953fc82abe37', 'D4df229e86622e288', 'D4df229e86622e288', 'Da18f98fedaed1b77', 'Da45fe3b60be688da', 'D942209d65c4aa2eb', 'Da99168aea835fab4', 'D2a32d2e188ac44f6', 'Da3ad379a3c165404', 'Da18f98fedaed1b77', 'Da3ad379a3c165404', 'D0bae953fc82abe37', 'Db3e6eea20c9f4918', 'Da18f98fedaed1b77', 'Dda92c39d7c9b5fc9', 'Dba6e376883eecaec', 'D00395fb7e6ab22d0', 'D39d68b419b0263e2', 'Da18f98fedaed1b77', 'D15cc82ad02511ecd', 'D6a127463f4e97179', 'Ddaca5ed8f825ed63', 'Da18f98fedaed1b77', 'D610775a7c95cf441', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Df79f3ca4c52718a0', 'Df79f3ca4c52718a0', 'Dcf3bd2504fce4b2f', 'D124b55c25657e53e', 'D2a32d2e188ac44f6', 'D8464cb68fffb55e0', 'Dc63226fae6185421', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Df85f8eea737d3203', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Db10ee3100e10a141', 'D2866aa756c167669', 'D6ea1db799cac5480', 'D34048752a0a3b98e', 'Dda92c39d7c9b5fc9', 'Dff761543386fadb3', 'D00395fb7e6ab22d0', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D4169a5f4b9d7dec5', 'D87c15bfeb40762d3', 'Da45fe3b60be688da', 'Da18f98fedaed1b77', 'D7903d0a523a37606', 'Da18f98fedaed1b77', 'D281693c0e5b93feb', 'D7ace0c3c808a49ed', 'D43172942398a6d65', 'D21dad6fef614661a', 'Dd4f4cfcb01301661', 'Dda92c39d7c9b5fc9', 'Da18f98fedaed1b77', 'De9636eb5dbdbf11e', 'D6b0a5e23ebb35b91', 'Dcf35e455d76660f4', 'Db12f173cf7f3e608', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Dae49086da7231e32', 'Da18f98fedaed1b77', 'D22275370b7105660', 'D576992b1f6b5a622', 'De81db1adb422dcbd', 'Dc9780d1c2681fada', 'D2a32d2e188ac44f6', 'D1dbd473c89ec3041', 'Da18f98fedaed1b77', 'D25d0dd110d94c443', 'Da18f98fedaed1b77', 'D700cf17b28b5f5c5', 'D9fb2312e1c36c8f4', 'D87c15bfeb40762d3', 'Db8fc8528317dd828', 'D470278d30380d860', 'D15cc82ad02511ecd', 'Da18f98fedaed1b77', 'D01483593cab1cf1e', 'Da3ad379a3c165404', 'Da45fe3b60be688da', 'Da3ad379a3c165404', 'Da45fe3b60be688da', 'D6b707bffeb44f6ed', 'D0bae953fc82abe37', 'D49b4bb9ba9a8e087', 'D87c15bfeb40762d3', 'D4e93addffc999df2', 'Da18f98fedaed1b77', 'D96d8062452b14dff', 'D61ad6f9a840a4e78', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D1538d58a3d83681d', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D928e2f87dd332566', 'Decce0ed65036984f', 'D35ab0029b109454c', 'Ddaca5ed8f825ed63', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D7903d0a523a37606', 'D21dad6fef614661a', 'D6ffbecea2f731038', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D4df229e86622e288', 'D2a32d2e188ac44f6', 'Ddac40121be0cdfd6', 'Da18f98fedaed1b77', 'D2bd20df8a9534348', 'D87c15bfeb40762d3', 'Df79f3ca4c52718a0', 'Dbe5be69f55e91af2', 'D6205883593181f1e', 'Da18f98fedaed1b77', 'D99e08690a7a78e08', 'D00395fb7e6ab22d0', 'D94c6be081209f12b', 'Dd19e8191f46d3ea1', 'Da18f98fedaed1b77', 'Dbe5be69f55e91af2', 'D0449b177383b3788', 'Da18f98fedaed1b77', 'Da3ad379a3c165404', 'D2bd20df8a9534348', 'D6b0a5e23ebb35b91', 'Da3ad379a3c165404', 'D85a6006c041ce37d', 'D41f336d411521ad5', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da45fe3b60be688da', 'D1dcac63301164575', 'Da18f98fedaed1b77', 'D49b4bb9ba9a8e087', 'D4df229e86622e288', 'D7881aece382258b6', 'D55fc1a075de1d06f', 'D21dad6fef614661a', 'D6a127463f4e97179', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'D2a32d2e188ac44f6', 'Da18f98fedaed1b77', 'Df79f3ca4c52718a0', 'Dd3795ed3741f4a74', 'D134c408eaf908c65', 'Da18f98fedaed1b77', 'D02f2d40e166585a6', 'D87c15bfeb40762d3', 'D45951f15fe2408ec', 'Da8983683bc990396', 'D281693c0e5b93feb', 'Da18f98fedaed1b77', 'Da18f98fedaed1b77', 'Dbe5be69f55e91af2', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'D55b3b8be9fae602a', 'D23d83624045765bf', 'D87c15bfeb40762d3', 'D9ecafcb2a634998a', 'Dfb35ec986a799435', 'D6b707bffeb44f6ed', 'Dd3750fbe3edd408a', 'Da45fe3b60be688da', 'Dfa142018ccbdefe1', 'D4afd01d198c67848', 'D8de48cb17bb758a9', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'Dda92c39d7c9b5fc9', 'D41f336d411521ad5', 'Da18f98fedaed1b77', 'D41f336d411521ad5', 'D21dad6fef614661a', 'Db27736d4ba8358e4', 'D994df5c06e7e1018', 'D90c76a483c5b3ec2', 'D87c15bfeb40762d3', 'D4df229e86622e288', 'Da18f98fedaed1b77', 'D648a0481247942ef', 'Ddaca5ed8f825ed63', 'Da18f98fedaed1b77', 'D82962286641f91c6', 'Dba6b73ef58ff35fe', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D45951f15fe2408ec', 'Df79f3ca4c52718a0', 'D35ab0029b109454c', 'D2fd6c97cc78b91a6', 'Da18f98fedaed1b77', 'Dbe5be69f55e91af2', 'D21dad6fef614661a', 'D7d1c5c70b1f1ed02', 'D531145f55becadc5', 'D7de38e44c4351e3b', 'D34304ac145473d75', 'Dd3750fbe3edd408a', 'Dbe5be69f55e91af2', 'D20c3458c5ec54342', 'D07ede3e051b7d2ae', 'D0bae953fc82abe37', 'Dd929fb5f653037f0', 'D0bae953fc82abe37', 'D2a969f5c434ed91b', 'Da3ad379a3c165404', 'Dbe5be69f55e91af2', 'Da45fe3b60be688da', 'D1cf8ba612db7e4b6', 'Da3ad379a3c165404', 'Dba6e376883eecaec', 'Da3ad379a3c165404', 'D56bda0b30cdc5857', 'D87bdf9e025d43cde', 'D49b4bb9ba9a8e087', 'D5a16f248eb099cdc', 'Df79f3ca4c52718a0', 'De9393c81d21da6b8', 'Da18f98fedaed1b77', 'Df80e1ba17efbcdc1', 'Da18f98fedaed1b77', 'D87c15bfeb40762d3', 'Df94d6fb4f39e1b44', 'D3d2d9eefb0083d03', 'Db80681b85a94354d', 'Df2c7e38430b62ac2', 'D5913cd9923f259d7', 'Dbeb9d830755e4d57', 'D2a32d2e188ac44f6', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'D648a0481247942ef', 'Da18f98fedaed1b77', 'D0ed896e026d15e13', 'D134c408eaf908c65', 'Dbe5be69f55e91af2', 'Dcf35e455d76660f4', 'D226702f0a1c78b49', 'Da18f98fedaed1b77', 'D34048752a0a3b98e', 'D945067e107f5ed24', 'D7219c6760206994d', 'Da18f98fedaed1b77', 'D0449b177383b3788', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'Df65e1e885b837d51', 'D665f55f71a743a30', 'D2bd20df8a9534348', 'D131fb4ec90cc9f8e', 'Da18f98fedaed1b77', 'Da3ad379a3c165404', 'D3d331023132184d1', 'Da3ad379a3c165404', 'D7881aece382258b6', 'Dce0a8a4a381956fe', 'D1dbd473c89ec3041', 'Da18f98fedaed1b77', 'D648a0481247942ef', 'D6a127463f4e97179', 'D4df229e86622e288', 'D928e2f87dd332566', 'Dbe5be69f55e91af2', 'D281693c0e5b93feb', 'D1feaa75e22f45a45', 'D134c408eaf908c65', 'D134c408eaf908c65', 'D134c408eaf908c65', 'D35ab0029b109454c', 'Db9c1f30919775a07', 'Df238760ae8cbaeae', 'Da0dd17be5bda3be1', 'D90c76a483c5b3ec2', 'Da18f98fedaed1b77', 'D21dad6fef614661a', 'D700cf17b28b5f5c5', 'D4df229e86622e288', 'D2bd20df8a9534348', 'D87c15bfeb40762d3', 'D1dcac63301164575', 'Da18f98fedaed1b77', 'D317a1d03a996bc5a', 'Da18f98fedaed1b77', 'Decce0ed65036984f', 'Da45fe3b60be688da', 'Db10ee3100e10a141', 'Da18f98fedaed1b77', 'Dc5530bc61dae1257', 'D6b707bffeb44f6ed', 'D4afd01d198c67848', 'Da18f98fedaed1b77', 'D74ad40f28c0614ff', 'D49b4bb9ba9a8e087', 'D87c15bfeb40762d3', 'D87c15bfeb40762d3', 'Dff761543386fadb3', 'D21dad6fef614661a', 'D41f336d411521ad5', 'D7de38e44c4351e3b', 'Da18f98fedaed1b77', 'D80413adfadfeb514', 'D39d68b419b0263e2', 'Da18f98fedaed1b77', 'Dfb024c85580990cc', 'D21dad6fef614661a', 'D87c15bfeb40762d3', 'Dff761543386fadb3', 'D7878b319d8969117', 'De0bd1983b65394ae', 'D2a32d2e188ac44f6', 'D5cfb62d3da6565c2', 'D134c408eaf908c65', 'Dc9dfbe1d9dbcea63', 'De6d966faa8614e13', 'D0f98ac075f62e8cc', 'Da18f98fedaed1b77', 'D4505b1091bd658a7', 'D21dad6fef614661a', 'D6357e1de59ccaa17', 'D97bca23646d849b4', 'Dda92c39d7c9b5fc9', 'D87c15bfeb40762d3', 'D2bd20df8a9534348', 'Da18f98fedaed1b77', 'Dda92c39d7c9b5fc9', 'D87c15bfeb40762d3', 'D21dad6fef614661a', 'Da18f98fedaed1b77', 'Dc4bcf6687ae04854', 'D648a0481247942ef', 'Dbe5be69f55e91af2', 'D87c15bfeb40762d3', 'Da18f98fedaed1b77', 'Da45fe3b60be688da', 'D7de38e44c4351e3b', 'D0bae953fc82abe37', 'D34048752a0a3b98e', 'Da3ad379a3c165404', 'Da18f98fedaed1b77'], max_cases=5, pattern_hint=card_testing)",
+        "entity_ids": [
+          "CC-4743",
+          "CC-4501",
+          "CC-3905",
+          "CC-3206",
+          "CC-3039"
+        ]
+      },
+      {
+        "claim": "Customer restates that they did not make this purchase and confirms they still have the card in their possession.",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4743",
+      "CC-4501",
+      "CC-3905",
+      "CC-3206",
+      "CC-3039"
+    ],
+    "summary": "Assessed as fraud at probability 0.88, matching the card testing pattern. 3 online authorizations at or under $5.00 occurred on card C11923-K2 within 24 hours, followed by 25 larger purchase(s). 24 online transaction(s) on card C11923-K2 came from a device profile marked New for this account. Against that, the disputed charge matches 12 earlier charge(s) on this card for the same product at the same amount, so it fits the cardholder's own recurring pattern. 25 transaction(s) totalling $1,034.17 are attributed to the episode. 8 other card(s) are connected through a shared device profile.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-HHG-011"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Customer restates that they did not make this purchase and confirms they still have the card in their possession."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern"
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern; remind the cardholder of the recurring charge"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: verdict uncertain with exposure $1,034.17 over $500"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder denied the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: confirmed unauthorized use requires an internal case"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "R2: exposure $1,034.17 exceeds $1,000"
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: 9 cards share device profile unknown | unknown | unknown | unknown; monitor every card sharing it"
+      }
+    ],
+    "what_changed": "The cardholder denied the transaction, moving probability from 0.45 to 0.88. Added: BLOCK_CARD, FILE_REPORT, MONITOR_CONNECTED_CARDS. Withdrawn: ESCALATE_TO_ANALYST, VERIFY_WITH_CUSTOMER, WARN_CUSTOMER."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Policy 3a: exposure $1,034.17 exceeds $1,000",
+    "narrative": "Between 2016-12-27 and 2016-12-28, 25 transaction(s) totalling $1,034.17 on card C11923-K2, held by customer C11923, were identified as suspicious. The activity was conducted via online and was flagged after the cardholder reported an unrecognised charge. 3 online authorizations at or under $5.00 occurred on card C11923-K2 within 24 hours, followed by 25 larger purchase(s). 24 online transaction(s) on card C11923-K2 came from a device profile marked New for this account. Device profile 'SM-G955F Build/R16NW | unknown | chrome 66.0 for android | unknown' was used by 8 other card(s) within the window, of which 8 already carry confirmed fraud across 108 closed case(s). The same device profile was observed on 8 other card(s): C07761-K1, C00294-K2, C05031-K2, C05381-K2, C08962-K2. 4 previously closed case(s) with confirmed fraud share structure with this activity, including CC-4501. The cardholder was contacted and stated they did not authorize the transactions; this response was simulated for this exercise. The activity is suspicious because it matches the card testing typology and departs from the cardholder's established pattern of 10315 prior transactions. The internal case was assessed at fraud probability 0.88 and the supporting evidence is retained with the case record.",
+    "subjects": [
+      "C11923",
+      "C11923-K2",
+      "C07761-K1",
+      "C00294-K2",
+      "C05031-K2",
+      "C05381-K2",
+      "C08962-K2",
+      "C11509-K2",
+      "C04597-K2",
+      "C08391-K2",
+      "SM-G955F Build/R16NW | unknown | chrome 66.0 for android | unknown"
+    ],
+    "total_amount_usd": 1034.17,
+    "activity_dates": [
+      "2016-12-27",
+      "2016-12-28"
+    ]
+  },
+  "stop_reason": "The verification response settled the authorization question, and the episode scope and connected cards are known.",
+  "tool_calls": 33,
+  "tokens": 0,
+  "latency_s": 11.36
+}

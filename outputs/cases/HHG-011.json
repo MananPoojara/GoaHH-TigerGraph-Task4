@@ -1,0 +1,250 @@
+{
+  "case_id": "HHG-011",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.88,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3578817",
+      "3578995",
+      "3578997",
+      "3579400",
+      "3579407",
+      "3579576",
+      "3579597",
+      "3580137",
+      "3580202",
+      "3580219",
+      "3580232",
+      "3580348",
+      "3580380",
+      "3580403",
+      "3580417",
+      "3580427",
+      "3580478",
+      "3580544",
+      "3580712",
+      "3580765",
+      "3580776",
+      "3580815",
+      "3580821",
+      "3580907",
+      "3580933"
+    ],
+    "first_suspicious_txn_id": "3578817",
+    "connected_card_ids": [
+      "C05031-K2",
+      "C06940-K1"
+    ],
+    "connected_device_profiles": [
+      "SAMSUNG SM-J701M Build/NRD90M | unknown | samsung browser 6.4 | unknown"
+    ],
+    "exposure_usd": 1034.17,
+    "evidence": [
+      {
+        "claim": "Flagged transaction 3583368 for $131.30 on 2016-12-29 03:27:44 is confirmed on card C11923-K2 held by customer C11923",
+        "source": "graph",
+        "ref": "query:get_case_anchor(card_id=C11923-K2, customer_id=C11923, txn_id=3583368)",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Cardholder C11923 has 10315 prior transactions before the cutoff, averaging $39.45, across 32 billing region(s)",
+        "source": "graph",
+        "ref": "query:get_customer_baseline(customer_id=C11923, lookback_days=180)",
+        "entity_ids": [
+          "C11923"
+        ]
+      },
+      {
+        "claim": "24 online transaction(s) on card C11923-K2 came from a device profile marked New for this account",
+        "source": "graph",
+        "ref": "query:detect_cnp_burst(card_id=C11923-K2, window_hours=48)",
+        "entity_ids": [
+          "3578817",
+          "3579597",
+          "3580380",
+          "3580403",
+          "3580417",
+          "3580478",
+          "3580544",
+          "3580712",
+          "3580765",
+          "3580776",
+          "3580815",
+          "3580907",
+          "3581048",
+          "3582338",
+          "3582375",
+          "3582413",
+          "3582738",
+          "3582868",
+          "3583101",
+          "3583229",
+          "3583368",
+          "3583406",
+          "3583411",
+          "3583435"
+        ]
+      },
+      {
+        "claim": "Device profile 'SAMSUNG SM-J701M Build/NRD90M | unknown | samsung browser 6.4 | unknown' was used by 2 other card(s) within the window, of which 2 already carry confirmed fraud across 25 closed case(s)",
+        "source": "graph",
+        "ref": "query:get_shared_origin_ring(exclude_card_id=C11923-K2, max_cards=50, origin_id=D12531143c8d0efe2, origin_kind=device, window_hours=720)",
+        "entity_ids": [
+          "C05031-K2",
+          "C06940-K1",
+          "CC-0081",
+          "CC-0891",
+          "CC-1298",
+          "CC-1918",
+          "CC-2116",
+          "CC-2214",
+          "CC-2517",
+          "CC-2650",
+          "CC-2842",
+          "CC-3205",
+          "CC-3221",
+          "CC-3510",
+          "CC-3553",
+          "CC-3586",
+          "CC-3774",
+          "CC-3847",
+          "CC-3848",
+          "CC-4065",
+          "CC-4150",
+          "CC-4479",
+          "CC-4710",
+          "CC-4740",
+          "CC-4982",
+          "CC-4992",
+          "CC-5318"
+        ]
+      },
+      {
+        "claim": "The disputed charge matches 12 earlier charge(s) on this card for the same product at the same amount, so it fits the cardholder's own recurring pattern",
+        "source": "graph",
+        "ref": "query:detect_recurring_charge(amount=131.3, amount_tolerance=1.0, card_id=C11923-K2, lookback_days=180, product_cd=C)",
+        "entity_ids": [
+          "3108704",
+          "3193355",
+          "3215582",
+          "3325985",
+          "3377879",
+          "3389493",
+          "3389533",
+          "3389542",
+          "3390485",
+          "3528954"
+        ]
+      },
+      {
+        "claim": "5 comparable closed case(s) were retrieved (5 confirmed fraud, 0 cleared); closest link: same customer",
+        "source": "graph",
+        "ref": "query:find_similar_cases(card_id=C11923-K2, customer_id=C11923, device_ids=['D0016a0bb9815d5df', 'D00395fb7e6ab22d0', 'D01483593cab1cf1e', 'D015a25a02f6a0c92', 'D02f2d40e166585a6', 'D02fef29c508cc52c', 'D0447b532ef300fc9', 'D0449b177383b3788', 'D05950388f8cee2e2', 'D05db56fa0bdcd8a9', 'D06a5310404d327a3', 'D07ede3e051b7d2ae', 'D085f674b7e9c5ece', 'D0871f4405baa8281', 'D0bae953fc82abe37', 'D0cb454e8c8f29803', 'D0ed896e026d15e13', 'D0f98ac075f62e8cc', 'D1166f81bd1a61174', 'D124b55c25657e53e', 'D12531143c8d0efe2', 'D12cc49e356ed9aa1', 'D131fb4ec90cc9f8e', 'D134c408eaf908c65', 'D135fdcde5043b0e1', 'D1538d58a3d83681d', 'D1541b14b1a5924b2', 'D15cc82ad02511ecd', 'D1632d40aefca614a', 'D173ec57d40da0293', 'D1827244ee8a619fa', 'D1830c693b46fc19d', 'D18c1df499238b578', 'D1a55385ee171edd5', 'D1be34847fa4da6ae', 'D1c7fbc37299a6b6c', 'D1cf8ba612db7e4b6', 'D1da4571117a313c1', 'D1dbd473c89ec3041', 'D1dc950a63c9ba0dd', 'D1dcac63301164575', 'D1dea19adada8a63f', 'D1f4dc4dfc1b32fb8', 'D1fa6d5abfec792a9', 'D1feaa75e22f45a45', 'D201cd036b4bab620', 'D2091115eb002b0da', 'D20c3458c5ec54342', 'D20e1370ec07ab504', 'D21175e7d087b39aa', 'D21dad6fef614661a', 'D22275370b7105660', 'D226702f0a1c78b49', 'D23d83624045765bf', 'D24255d86d2bc3c91', 'D25770e3e12532916', 'D25b266926cf95c9e', 'D25d0dd110d94c443', 'D2765c71fe4587c6c', 'D281693c0e5b93feb', 'D285211ec1c57cfb3', 'D2866aa756c167669', 'D288e58f92ae71795', 'D28dcc0fba727eb06', 'D2a32d2e188ac44f6', 'D2a969f5c434ed91b', 'D2bd20df8a9534348', 'D2c485799f4e536be', 'D2d625b4310339c38', 'D2e7c99d2aac9eacf', 'D2fd6c97cc78b91a6', 'D317a1d03a996bc5a', 'D33035465684e78d7', 'D34048752a0a3b98e', 'D34304ac145473d75', 'D343545685ddf0583', 'D353c61939514ef19', 'D359014e0ca5fcaeb', 'D35ab0029b109454c', 'D377a70459296a34c', 'D39d68b419b0263e2', 'D3a08d91e58079961', 'D3a36ad9ac2117815', 'D3cb9de4051875edc', 'D3cc68a759f36ee90', 'D3cc769e3c290f23b', 'D3cf6449413b67833', 'D3d2d9eefb0083d03', 'D3d331023132184d1', 'D3e7b49e8dedaf882', 'D4169a5f4b9d7dec5', 'D41f336d411521ad5', 'D4201f4651cdd4b1a', 'D43172942398a6d65', 'D4505b1091bd658a7', 'D45951f15fe2408ec', 'D4605041b81347876', 'D46b28f89b310d02b', 'D470278d30380d860', 'D473310e4c621c9ff', 'D48bcae8536304fe7', 'D49b4bb9ba9a8e087', 'D4afd01d198c67848', 'D4b53eee819eb7fbf', 'D4be328e9a24a59eb', 'D4bf7449f40e93379', 'D4c0bce943f447286', 'D4d339bb8a1c2aa0e', 'D4dd267b5a177a3a9', 'D4df229e86622e288', 'D4dfcedc04b3f1f79', 'D4e93addffc999df2', 'D4f00722307186ed1', 'D4f6dcfc327100bc5', 'D51831051e6c93a63', 'D51fd64eb60031b5b', 'D531145f55becadc5', 'D53db1667dedfa318', 'D554adf1e263f42c2', 'D55b3b8be9fae602a', 'D55fc1a075de1d06f', 'D56bda0b30cdc5857', 'D576992b1f6b5a622', 'D5913cd9923f259d7', 'D5929ddd8fb9d8e34', 'D5a16f248eb099cdc', 'D5aded24df5e18138', 'D5cfb62d3da6565c2', 'D5d111902dcfb1228', 'D5d212f6f5da1c241', 'D5f84cc4ed98dd96e', 'D5fc072478895dc91', 'D600d040811afe256', 'D60a977c891d0ecd1', 'D610775a7c95cf441', 'D614bb4e186ec10d3', 'D61a416ea178625ce', 'D61ad6f9a840a4e78', 'D6205883593181f1e', 'D63327b9dac731c08', 'D6357e1de59ccaa17', 'D636b0fc177c3ddf5', 'D64844a6e46cfe058', 'D648a0481247942ef', 'D662de2a06af0eb46', 'D665f55f71a743a30', 'D678fe44787a7cb8f', 'D68d23e8a7b498b4c', 'D691373df59571994', 'D69a48810f1faf948', 'D6a03065c5876b550', 'D6a127463f4e97179', 'D6a4071e244a55a1e', 'D6ae2594ef96dc67f', 'D6b0a5e23ebb35b91', 'D6b4562b6d934281a', 'D6b707bffeb44f6ed', 'D6bf29d4b35b799b0', 'D6cafa3cd4e8ac286', 'D6d15d0b7ea9022ba', 'D6ea1db799cac5480', 'D6ef29594247e6659', 'D6ffbecea2f731038', 'D700cf17b28b5f5c5', 'D7122eaad77776011', 'D7151da0736498970', 'D7219c6760206994d', 'D7418996910bc4cb0', 'D749aac2087728c87', 'D74ad40f28c0614ff', 'D76c06dbbcb5fa7b9', 'D76d9a5f1a66e41fc', 'D77749bcbe39e8c5f', 'D783c44bc99384a27', 'D7878b319d8969117', 'D7881aece382258b6', 'D7903d0a523a37606', 'D7ace0c3c808a49ed', 'D7c4743f34b2297e9', 'D7c613f88bb72d5df', 'D7cd80c9b92b4bba2', 'D7d1c5c70b1f1ed02', 'D7de38e44c4351e3b', 'D7df9a10e296de3f8', 'D7e4e3f134f141fd5', 'D7fe36b3698c2046b', 'D80413adfadfeb514', 'D80452e8234a33e18', 'D813e1c77f328d3c0', 'D8240e0ef2aef2f8b', 'D82962286641f91c6', 'D84207506e9797381', 'D8464cb68fffb55e0', 'D849e20816736181f', 'D8577af0a580a394b', 'D85a6006c041ce37d', 'D85f6e3af07f71db5', 'D871c7fc91479f6d7', 'D87bdf9e025d43cde', 'D87c15bfeb40762d3', 'D8b7152d4f805d438', 'D8b76ebb810d15024', 'D8ba726396db624f8', 'D8bd6b8d615244056', 'D8c8427058099738a', 'D8d1ff657dbf8f127', 'D8de48cb17bb758a9', 'D8f1b00f91df00487', 'D8f8ff3933f1dbf18', 'D90c76a483c5b3ec2', 'D928e2f87dd332566', 'D92bd57ea4b1e205b', 'D92c6948a4da3b9f6', 'D93d3ac1cd85e70c7', 'D942209d65c4aa2eb', 'D94285df623c967e3', 'D945067e107f5ed24', 'D94c6be081209f12b', 'D95a34715a8c53f66', 'D96d8062452b14dff', 'D97bca23646d849b4', 'D994df5c06e7e1018', 'D99e08690a7a78e08', 'D9c8d0b5b0f46eed0', 'D9ecafcb2a634998a', 'D9fb2312e1c36c8f4', 'D9fe167a94148c214', 'Da018a8b9c8266cbc', 'Da020c32376d24702', 'Da0c946d50fabb293', 'Da0dd17be5bda3be1', 'Da1892271fb92654d', 'Da18f98fedaed1b77', 'Da2d063fd901305fe', 'Da3aab07b2baa4590', 'Da3ad379a3c165404', 'Da45fe3b60be688da', 'Da5dde89e69b5dbdb', 'Da8983683bc990396', 'Da99168aea835fab4', 'Da9fcaca7419aa399', 'Daad9b076496ebcab', 'Dab66725e7bc09321', 'Dabdcaf75cb107b4f', 'Dac425dc3b1982a2b', 'Dae49086da7231e32', 'Dafe9b9e6b397cf5c', 'Daff6ec4eb7546578', 'Db10ee3100e10a141', 'Db12f173cf7f3e608', 'Db27736d4ba8358e4', 'Db27e42e91214ef31', 'Db2a82548092ad30e', 'Db3b8ef5dafc4eaa8', 'Db3e6eea20c9f4918', 'Db475bce84f53ab38', 'Db5d344c050da88d6', 'Db6c028944f5edd7e', 'Db80681b85a94354d', 'Db8b51aea21bffe71', 'Db8fc8528317dd828', 'Db9c1f30919775a07', 'Db9fb1b5a153d1f9a', 'Dba1eee1296403059', 'Dba6b73ef58ff35fe', 'Dba6e376883eecaec', 'Dbd39a7193eef1b00', 'Dbd7b26a40509e86c', 'Dbe5be69f55e91af2', 'Dbeb9d830755e4d57', 'Dbf807daa7cbd2c55', 'Dbfff3dadb311550f', 'Dc0a7b6503122b228', 'Dc18aaaaa44553d34', 'Dc28f951bd8e7ce05', 'Dc4ba22a4910bb98d', 'Dc4bcf6687ae04854', 'Dc5530bc61dae1257', 'Dc63226fae6185421', 'Dc7a2fa49bd921e3b', 'Dc84359407f24ed8f', 'Dc9780d1c2681fada', 'Dc9dfbe1d9dbcea63', 'Dca0353775c221d56', 'Dca0f70e6242a5159', 'Dcb00aef316b08b49', 'Dcdc353672dc9e38a', 'Dce0a8a4a381956fe', 'Dceeba760044b38bc', 'Dcf35e455d76660f4', 'Dcf3bd2504fce4b2f', 'Dcf59d69239d9e690', 'Dd09684a44ea8cd48', 'Dd19e8191f46d3ea1', 'Dd24f08bc6791616a', 'Dd3750fbe3edd408a', 'Dd3795ed3741f4a74', 'Dd3f09cb6ac088949', 'Dd4f4cfcb01301661', 'Dd50dd40e86800e70', 'Dd55f0caaa004da44', 'Dd57aa380da22cbbe', 'Dd8bbecf526a43fec', 'Dd8eaeae3b73ca9b7', 'Dd929fb5f653037f0', 'Dda92c39d7c9b5fc9', 'Ddac40121be0cdfd6', 'Ddaca5ed8f825ed63', 'Ddbb2b6f66e0138f1', 'De0bd1983b65394ae', 'De2776965dff482e7', 'De29aa6203fa28bdb', 'De35ecb807a44576a', 'De41adfa7ac08f6f9', 'De4ebd740ad36f88d', 'De508e056fca18361', 'De6d966faa8614e13', 'De81db1adb422dcbd', 'De9393c81d21da6b8', 'De9636eb5dbdbf11e', 'Decce0ed65036984f', 'Df007333a70c268f7', 'Df166988dd1d4b858', 'Df19397695e667ee6', 'Df1b42db48ad188d1', 'Df238760ae8cbaeae', 'Df2a19aeaf111cf4b', 'Df2c7e38430b62ac2', 'Df573df3fd144f139', 'Df5d0878e4b684654', 'Df65e1e885b837d51', 'Df74ec6e7fef9f0af', 'Df7903d4e5e81835d', 'Df79f3ca4c52718a0', 'Df80e1ba17efbcdc1', 'Df85f8eea737d3203', 'Df87591c6109001f5', 'Df8a7f2b180d647b6', 'Df8cdba66f589fc76', 'Df94d6fb4f39e1b44', 'Df96a83dfb7179d51', 'Df99dfcc51d0341df', 'Dfa142018ccbdefe1', 'Dfb024c85580990cc', 'Dfb35ec986a799435', 'Dfbf53ecd890053e5', 'Dfd7ce60f4be5a8c4', 'Dfedb7a2274d6de90', 'Dff761543386fadb3'], max_cases=5, pattern_hint=card_not_present_new_device)",
+        "entity_ids": [
+          "CC-0031",
+          "CC-0290",
+          "CC-1056",
+          "CC-2247",
+          "CC-2673"
+        ]
+      },
+      {
+        "claim": "Customer restates that they did not make this purchase and confirms they still have the card in their possession.",
+        "source": "customer",
+        "ref": "evidence_request:1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0031",
+      "CC-0290",
+      "CC-1056",
+      "CC-2247",
+      "CC-2673"
+    ],
+    "summary": "Assessed as fraud at probability 0.88, matching the card not present new device pattern. 24 online transaction(s) on card C11923-K2 came from a device profile marked New for this account. Device profile 'SAMSUNG SM-J701M Build/NRD90M | unknown | samsung browser 6.4 | unknown' was used by 2 other card(s) within the window, of which 2 already carry confirmed fraud across 25 closed case(s). Against that, the disputed charge matches 12 earlier charge(s) on this card for the same product at the same amount, so it fits the cardholder's own recurring pattern. 25 transaction(s) totalling $1,034.17 are attributed to the episode. 2 other card(s) are connected through a shared device profile.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-HHG-011"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 10,
+      "assumed_response": "Customer restates that they did not make this purchase and confirms they still have the card in their possession."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern"
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: disputed charge matches the cardholder's own recurring pattern; remind the cardholder of the recurring charge"
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: verdict uncertain with exposure $1,034.17 over $500"
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: cardholder denied the transaction"
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: confirmed unauthorized use requires an internal case"
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "R2: exposure $1,034.17 exceeds $1,000"
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: 3 cards share device profile unknown | unknown | unknown | unknown; monitor every card sharing it"
+      }
+    ],
+    "what_changed": "The cardholder denied the transaction, moving probability from 0.35 to 0.88. Added: BLOCK_CARD, FILE_REPORT, MONITOR_CONNECTED_CARDS. Withdrawn: ESCALATE_TO_ANALYST, VERIFY_WITH_CUSTOMER, WARN_CUSTOMER."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Policy 3a: exposure $1,034.17 exceeds $1,000",
+    "narrative": "Between 2016-12-27 and 2016-12-28, 25 transaction(s) totalling $1,034.17 on card C11923-K2, held by customer C11923, were identified as suspicious. The activity was conducted via online and was flagged after the cardholder reported an unrecognised charge. 24 online transaction(s) on card C11923-K2 came from a device profile marked New for this account. Device profile 'SAMSUNG SM-J701M Build/NRD90M | unknown | samsung browser 6.4 | unknown' was used by 2 other card(s) within the window, of which 2 already carry confirmed fraud across 25 closed case(s). 5 comparable closed case(s) were retrieved (5 confirmed fraud, 0 cleared); closest link: same customer. The same device profile was observed on 2 other card(s): C05031-K2, C06940-K1. 5 previously closed case(s) with confirmed fraud share structure with this activity, including CC-0031. The cardholder was contacted and stated they did not authorize the transactions; this response was simulated for this exercise. The activity is suspicious because it matches the card not present new device typology and departs from the cardholder's established pattern of 10315 prior transactions. The internal case was assessed at fraud probability 0.88 and the supporting evidence is retained with the case record.",
+    "subjects": [
+      "C11923",
+      "C11923-K2",
+      "C05031-K2",
+      "C06940-K1",
+      "SAMSUNG SM-J701M Build/NRD90M | unknown | samsung browser 6.4 | unknown"
+    ],
+    "total_amount_usd": 1034.17,
+    "activity_dates": [
+      "2016-12-27",
+      "2016-12-28"
+    ]
+  },
+  "stop_reason": "The verification response settled the authorization question, and the episode scope and connected cards are known.",
+  "tool_calls": 32,
+  "tokens": 0,
+  "latency_s": 1.05
+}
