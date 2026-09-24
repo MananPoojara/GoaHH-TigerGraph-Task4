@@ -1,0 +1,27 @@
+// Post-load derivation: which device profiles each closed case touched.
+//
+// The closed-case file lists transactions, not devices. `find_similar_cases`
+// scores "shared device profile" by walking FraudCase -(CONNECTED_DEVICE>)-, so
+// that edge is derived here, in the graph, by traversing
+// FraudCase -> INVOLVES -> Transaction -> FROM_DEVICE -> DeviceProfile.
+// Idempotent: re-running upserts the same edges.
+//
+// Run after the load:  RUN QUERY link_closed_case_devices()
+
+USE GRAPH FraudLens
+
+CREATE OR REPLACE QUERY link_closed_case_devices() FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@links;
+
+  Cases = {FraudCase.*};
+  History = SELECT c FROM Cases:c WHERE c.trust_tier == "labeled_history";
+
+  Linked = SELECT d
+           FROM History:c -(INVOLVES>)- Transaction:t -(FROM_DEVICE>)- DeviceProfile:d
+           ACCUM
+             INSERT INTO CONNECTED_DEVICE VALUES (c, d, "", 1),
+             @@links += 1;
+
+  PRINT @@links AS links_written;
+}

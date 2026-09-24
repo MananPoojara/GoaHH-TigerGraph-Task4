@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fraudlens-graph": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "fraudlens_graph.mcp_server"]
+    },
+    "tigergraph": {
+      "command": ".venv/Scripts/tigergraph-mcp.exe",
+      "args": ["--env-file", ".env", "--allowed-tools", "read-only", "--log-tool-calls"]
+    }
+  }
+}

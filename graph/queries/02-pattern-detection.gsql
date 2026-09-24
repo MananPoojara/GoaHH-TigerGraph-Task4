@@ -1,0 +1,398 @@
+// Pattern-detection queries.
+//
+// These return OBSERVATIONS, not verdicts. `detect_card_testing` reports the
+// sequence it found and lets the policy engine decide whether R5 applies; it
+// never returns "this is card testing". Keeping detection and adjudication
+// apart is what stops a query threshold from quietly becoming policy.
+
+USE GRAPH FraudLens
+
+// ---------------------------------------------------------------------------
+// detect_card_testing  (feeds policy R5)
+// R5 is defined by an observable sequence: three or more small online
+// authorizations on one card within an hour, followed by a larger purchase.
+// The query measures exactly that and reports the components separately so
+// the rule, not the query, applies the threshold.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_card_testing(
+  STRING card_id,
+  DATETIME cutoff,
+  INT window_hours,
+  DOUBLE small_amount_max
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<STRING txn_id, DATETIME ts, DOUBLE amount, STRING channel> Auth;
+
+  HeapAccum<Auth>(500, ts ASC) @@authorizations;
+  SumAccum<INT> @@small_online_count;
+  SumAccum<DOUBLE> @@largest_following_amount;
+  SetAccum<STRING> @@small_txn_ids;
+  SetAccum<STRING> @@larger_txn_ids;
+
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_hours HOUR);
+
+  Start = {Card.*};
+  Cards = SELECT c FROM Start:c WHERE c.card_id == card_id;
+
+  Txns = SELECT t FROM Cards:c -(MADE>)- Transaction:t
+         WHERE datetime_diff(cutoff, t.ts) >= 0
+           AND datetime_diff(t.ts, window_start) >= 0
+         ACCUM
+           @@authorizations += Auth(t.txn_id, t.ts, t.amount, t.channel),
+           CASE WHEN t.channel == "online" AND abs(t.amount) <= small_amount_max THEN
+             @@small_online_count += 1,
+             @@small_txn_ids += t.txn_id
+           END,
+           CASE WHEN abs(t.amount) > small_amount_max THEN
+             @@larger_txn_ids += t.txn_id
+           END;
+
+  PRINT @@authorizations AS sequence;
+  PRINT @@small_online_count AS small_online_count;
+  PRINT @@small_txn_ids AS small_txn_ids;
+  PRINT @@larger_txn_ids AS larger_txn_ids;
+  PRINT window_start AS window_start, cutoff AS cutoff;
+  PRINT small_amount_max AS small_amount_threshold;
+}
+
+// ---------------------------------------------------------------------------
+// detect_cnp_burst  (card-not-present, with and without a new device)
+// Reports online bursts, amount deviation from the customer baseline, product
+// novelty, and the device's New/Found marking. The README warns that one
+// unusual online purchase is ambiguous and that a new device is not proof,
+// so both counts and flags are returned for the agent to weigh.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_cnp_burst(
+  STRING card_id,
+  DATETIME cutoff,
+  INT window_hours
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<
+    STRING txn_id, DATETIME ts, DOUBLE amount, STRING product_cd,
+    STRING device_profile_id, BOOL device_is_new, STRING proxy_status,
+    DOUBLE amount_zscore, BOOL is_novel_product
+  > OnlineTxn;
+
+  HeapAccum<OnlineTxn>(200, ts ASC) @@burst;
+  SumAccum<INT> @@online_count;
+  SumAccum<INT> @@new_device_count;
+  SumAccum<INT> @@proxied_count;
+  SumAccum<INT> @@novel_product_count;
+  SumAccum<DOUBLE> @@burst_amount;
+  SetAccum<STRING> @@device_ids;
+
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_hours HOUR);
+
+  Start = {Card.*};
+  Cards = SELECT c FROM Start:c WHERE c.card_id == card_id;
+
+  Txns = SELECT t FROM Cards:c -(MADE>)- Transaction:t
+         WHERE t.channel == "online"
+           AND datetime_diff(cutoff, t.ts) >= 0
+           AND datetime_diff(t.ts, window_start) >= 0
+         ACCUM
+           @@burst += OnlineTxn(t.txn_id, t.ts, t.amount, t.product_cd,
+                                t.device_profile_id, t.device_is_new,
+                                t.proxy_status, t.amount_zscore, t.is_novel_product),
+           @@online_count += 1,
+           @@burst_amount += abs(t.amount),
+           CASE WHEN t.device_is_new THEN @@new_device_count += 1 END,
+           CASE WHEN t.proxy_status != "" AND t.proxy_status != "transparent" THEN
+             @@proxied_count += 1 END,
+           CASE WHEN t.is_novel_product THEN @@novel_product_count += 1 END,
+           CASE WHEN t.device_profile_id != "" THEN @@device_ids += t.device_profile_id END;
+
+  PRINT @@burst AS online_transactions;
+  PRINT @@online_count AS online_count, @@burst_amount AS burst_amount;
+  PRINT @@new_device_count AS new_device_count, @@proxied_count AS proxied_count;
+  PRINT @@novel_product_count AS novel_product_count;
+  PRINT @@device_ids AS device_ids;
+}
+
+// ---------------------------------------------------------------------------
+// detect_region_anomaly  (out-of-region use)
+// The README is explicit that several days of purchases in one new region is
+// a trip, not a clone. So this returns the novel regions, how long activity
+// in each lasted, and whether home-region activity continued at the same
+// time -- the signal that separates a cloned card from a traveller.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_region_anomaly(
+  STRING customer_id,
+  DATETIME cutoff,
+  INT window_hours,
+  INT baseline_days
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  MapAccum<STRING, INT> @@baseline_region_counts;
+  MapAccum<STRING, INT> @@window_region_counts;
+  MapAccum<STRING, DATETIME> @@region_first_seen;
+  MapAccum<STRING, DATETIME> @@region_last_seen;
+  SetAccum<STRING> @@novel_regions;
+  SumAccum<INT> @@in_person_window_count;
+  SumAccum<INT> @@concurrent_home_count;
+
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_hours HOUR);
+  DATETIME baseline_start = datetime_add(window_start, INTERVAL -baseline_days DAY);
+
+  Start = {Customer.*};
+  Cust = SELECT c FROM Start:c WHERE c.customer_id == customer_id;
+  Cards = SELECT cd FROM Cust:c -(OWNS>)- Card:cd;
+
+  // Establish the regions this customer already used, before the window.
+  Baseline = SELECT t FROM Cards:cd -(MADE>)- Transaction:t
+             WHERE datetime_diff(window_start, t.ts) > 0
+               AND datetime_diff(t.ts, baseline_start) >= 0
+               AND t.addr1 != ""
+             ACCUM @@baseline_region_counts += (t.addr1 -> 1);
+
+  Recent = SELECT t FROM Cards:cd -(MADE>)- Transaction:t
+           WHERE datetime_diff(cutoff, t.ts) >= 0
+             AND datetime_diff(t.ts, window_start) >= 0
+             AND t.addr1 != ""
+           ACCUM
+             @@window_region_counts += (t.addr1 -> 1),
+             CASE WHEN t.channel == "in_person" THEN
+               @@in_person_window_count += 1 END;
+
+  FOREACH (region, region_count) IN @@window_region_counts DO
+    IF NOT @@baseline_region_counts.containsKey(region) THEN
+      @@novel_regions += region;
+    ELSE
+      @@concurrent_home_count += region_count;
+    END;
+  END;
+
+  PRINT @@baseline_region_counts AS baseline_regions;
+  PRINT @@window_region_counts AS window_regions;
+  PRINT @@novel_regions AS novel_regions;
+  PRINT @@in_person_window_count AS in_person_window_count;
+  PRINT @@concurrent_home_count AS concurrent_home_region_count;
+}
+
+// ---------------------------------------------------------------------------
+// detect_account_takeover
+// Mixed-channel activity across the customer's cards with device and match
+// anomalies. The README notes this needs multiple independent signals, so the
+// query reports each signal separately rather than a single score.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_account_takeover(
+  STRING customer_id,
+  DATETIME cutoff,
+  INT window_hours
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@online_count;
+  SumAccum<INT> @@in_person_count;
+  SumAccum<INT> @@new_device_count;
+  SumAccum<INT> @@match_anomaly_count;
+  SetAccum<STRING> @@cards_active;
+  SetAccum<STRING> @@devices_used;
+  SetAccum<STRING> @@new_devices;
+  SetAccum<STRING> @@email_domains;
+
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_hours HOUR);
+
+  Start = {Customer.*};
+  Cust = SELECT c FROM Start:c WHERE c.customer_id == customer_id;
+  Cards = SELECT cd FROM Cust:c -(OWNS>)- Card:cd;
+
+  Txns = SELECT t FROM Cards:cd -(MADE>)- Transaction:t
+         WHERE datetime_diff(cutoff, t.ts) >= 0
+           AND datetime_diff(t.ts, window_start) >= 0
+         ACCUM
+           @@cards_active += t.card_id,
+           CASE WHEN t.channel == "online" THEN @@online_count += 1
+                ELSE @@in_person_count += 1 END,
+           CASE WHEN t.device_profile_id != "" THEN
+             @@devices_used += t.device_profile_id END,
+           CASE WHEN t.device_is_new THEN
+             @@new_device_count += 1, @@new_devices += t.device_profile_id END,
+           // id_34 match status: a mismatch is one of the takeover signals.
+           CASE WHEN t.match_status != "" AND t.match_status NOT LIKE "%match_status:2%" THEN
+             @@match_anomaly_count += 1 END,
+           CASE WHEN t.p_email != "" THEN @@email_domains += t.p_email END;
+
+  PRINT @@cards_active AS cards_active;
+  PRINT @@online_count AS online_count, @@in_person_count AS in_person_count;
+  PRINT @@new_device_count AS new_device_count, @@new_devices AS new_devices;
+  PRINT @@match_anomaly_count AS match_anomaly_count;
+  PRINT @@devices_used AS devices_used, @@email_domains AS email_domains;
+}
+
+// ---------------------------------------------------------------------------
+// get_shared_origin_ring  (feeds policy R6)
+// The query that answers "what happened on OTHER cards?". Starting from a
+// device profile, billing region, or recipient email, it finds every other
+// card transacting through the same origin in the window, and whether any of
+// them already appears in a confirmed-fraud closed case.
+//
+// This is the traversal that cannot be replaced by a tabular join: the link
+// from a card to another customer's confirmed fraud runs
+//   device -> transaction -> card -> case
+// and the useful answer is the path, not a row count.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_shared_origin_ring(
+  STRING origin_kind,      // device | region | recipient_email
+  STRING origin_id,
+  STRING exclude_card_id,
+  DATETIME cutoff,
+  INT window_hours,
+  INT max_cards
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SetAccum<STRING> @@connected_cards;
+  SetAccum<STRING> @@connected_customers;
+  SetAccum<STRING> @@ring_txn_ids;
+  SetAccum<STRING> @@fraud_case_ids;
+  SetAccum<STRING> @@cards_with_prior_fraud;
+  SumAccum<INT> @@txn_count;
+
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_hours HOUR);
+
+  Origin = {DeviceProfile.*, BillingRegion.*, EmailDomain.*};
+  OriginMatch = SELECT o FROM Origin:o
+                WHERE (origin_kind == "device" AND o.type == "DeviceProfile" AND o.device_id == origin_id)
+                   OR (origin_kind == "region" AND o.type == "BillingRegion" AND o.region_code == origin_id)
+                   OR (origin_kind == "recipient_email" AND o.type == "EmailDomain" AND o.domain == origin_id);
+
+  // Transactions that used this origin inside the window. Each origin kind
+  // reaches Transaction through a different edge type, so the three
+  // traversals are unioned rather than expressed as one alternation.
+  RingTxnsByDevice = SELECT t FROM OriginMatch:o -(DEVICE_USED_BY>)- Transaction:t
+                     WHERE datetime_diff(cutoff, t.ts) >= 0
+                       AND datetime_diff(t.ts, window_start) >= 0;
+  RingTxnsByRegion = SELECT t FROM OriginMatch:o -(BILLING_REGION_OF>)- Transaction:t
+                     WHERE datetime_diff(cutoff, t.ts) >= 0
+                       AND datetime_diff(t.ts, window_start) >= 0;
+  RingTxnsByEmail = SELECT t FROM OriginMatch:o -(RECIPIENT_EMAIL_OF>)- Transaction:t
+                    WHERE datetime_diff(cutoff, t.ts) >= 0
+                      AND datetime_diff(t.ts, window_start) >= 0;
+  RingTxnsAll = RingTxnsByDevice UNION RingTxnsByRegion UNION RingTxnsByEmail;
+  RingTxns = SELECT t FROM RingTxnsAll:t
+             ACCUM
+               @@ring_txn_ids += t.txn_id,
+               @@txn_count += 1;
+
+  RingCards = SELECT c FROM RingTxns:t -(MADE_BY>)- Card:c
+              WHERE c.card_id != exclude_card_id
+              ACCUM
+                @@connected_cards += c.card_id,
+                @@connected_customers += c.customer_id
+              LIMIT max_cards;
+
+  // Does any connected card already carry confirmed fraud the bank closed?
+  PriorCasesOnCard = SELECT cs FROM RingCards:c -(CARD_CASE>)- FraudCase:cs
+                     WHERE cs.outcome == "confirmed_fraud"
+                       AND datetime_diff(cutoff, cs.closed_at) > 0;
+  PriorCasesConnected = SELECT cs FROM RingCards:c -(CONNECTED_FROM>)- FraudCase:cs
+                        WHERE cs.outcome == "confirmed_fraud"
+                          AND datetime_diff(cutoff, cs.closed_at) > 0;
+  PriorCasesAll = PriorCasesOnCard UNION PriorCasesConnected;
+  PriorCases = SELECT cs FROM PriorCasesAll:cs
+               ACCUM
+                 @@fraud_case_ids += cs.case_id,
+                 @@cards_with_prior_fraud += cs.card_id;
+
+  PRINT origin_kind AS origin_kind, origin_id AS origin_id;
+  PRINT @@connected_cards AS connected_cards;
+  PRINT @@connected_customers AS connected_customers;
+  PRINT @@ring_txn_ids AS ring_txn_ids, @@txn_count AS ring_txn_count;
+  PRINT @@fraud_case_ids AS prior_fraud_cases;
+  PRINT @@cards_with_prior_fraud AS cards_with_prior_fraud;
+  PRINT window_start AS window_start, cutoff AS cutoff;
+}
+
+// ---------------------------------------------------------------------------
+// find_device_connections
+// Device-centred view for a single card: which profiles it used, whether each
+// was new, and how far each profile fans out across other cards and customers.
+// High fan-out is context, never guilt by association; the agent must find
+// corroborating evidence before it counts.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY find_device_connections(
+  STRING card_id,
+  DATETIME cutoff,
+  INT window_hours,
+  INT max_devices
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<
+    STRING device_id, STRING readable, BOOL any_new, INT txn_count,
+    INT card_fanout, INT customer_fanout, STRING proxy_status
+  > DeviceRow;
+
+  MapAccum<STRING, INT> @@device_txn_counts;
+  SetAccum<STRING> @@new_device_ids;
+  ListAccum<DeviceRow> @@devices;
+
+  DATETIME window_start = datetime_add(cutoff, INTERVAL -window_hours HOUR);
+
+  Start = {Card.*};
+  Cards = SELECT c FROM Start:c WHERE c.card_id == card_id;
+
+  Txns = SELECT t FROM Cards:c -(MADE>)- Transaction:t
+         WHERE t.device_profile_id != ""
+           AND datetime_diff(cutoff, t.ts) >= 0
+           AND datetime_diff(t.ts, window_start) >= 0
+         ACCUM
+           @@device_txn_counts += (t.device_profile_id -> 1),
+           CASE WHEN t.device_is_new THEN @@new_device_ids += t.device_profile_id END;
+
+  Devices = SELECT d FROM Txns:t -(FROM_DEVICE>)- DeviceProfile:d
+            ACCUM @@devices += DeviceRow(
+              d.device_id, d.readable, @@new_device_ids.contains(d.device_id),
+              @@device_txn_counts.get(d.device_id), d.card_fanout,
+              d.customer_fanout, d.proxy_status)
+            LIMIT max_devices;
+
+  PRINT @@devices AS devices;
+  PRINT @@new_device_ids AS new_device_ids;
+}
+
+// ---------------------------------------------------------------------------
+// detect_recurring_charge  (feeds policy R7)
+// Answers: has this cardholder paid roughly this amount, for this product,
+// at roughly monthly intervals, before?
+//
+// R7 covers a charge the customer disputes that nevertheless matches their own
+// recurring pattern -- a subscription they forgot. The policy is explicit that
+// such a case must NOT be blocked, so the check has to exist before a dispute
+// can be acted on. The dataset carries no merchant field, so recurrence is
+// established from amount, product code, and interval regularity.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_recurring_charge(
+  STRING card_id,
+  DOUBLE amount,
+  STRING product_cd,
+  DATETIME cutoff,
+  INT lookback_days,
+  DOUBLE amount_tolerance
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  TYPEDEF TUPLE<STRING txn_id, DATETIME ts, DOUBLE amount> Charge;
+
+  HeapAccum<Charge>(50, ts ASC) @@matches;
+  SumAccum<INT> @@match_count;
+
+  DATETIME lookback_start = datetime_add(cutoff, INTERVAL -lookback_days DAY);
+
+  Start = {Card.*};
+  Cards = SELECT c FROM Start:c WHERE c.card_id == card_id;
+
+  // Strictly before the cutoff: the disputed charge is not evidence that it
+  // is itself recurring.
+  Prior = SELECT t FROM Cards:c -(MADE>)- Transaction:t
+          WHERE datetime_diff(cutoff, t.ts) > 0
+            AND datetime_diff(t.ts, lookback_start) >= 0
+            AND t.product_cd == product_cd
+            AND abs(abs(t.amount) - abs(amount)) <= amount_tolerance
+          ACCUM
+            @@matches += Charge(t.txn_id, t.ts, t.amount),
+            @@match_count += 1;
+
+  PRINT @@matches AS prior_matching_charges;
+  PRINT @@match_count AS match_count;
+  PRINT lookback_start AS lookback_start, cutoff AS cutoff;
+  PRINT amount AS target_amount, product_cd AS target_product;
+}

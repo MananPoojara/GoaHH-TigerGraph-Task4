@@ -1,0 +1,272 @@
+// FraudCase write-back.
+//
+// This is the ONLY mutating query the runtime investigator may reach, and it
+// is reached through a single persistence adapter. Raw GSQL mutation is
+// disabled for the agent: a model that can write arbitrary graph state can
+// manufacture its own evidence.
+//
+// Every ID is deterministic (<case_id>, <case_id>:<seq>, <case_id>:<stage>:<n>)
+// so a retry after a timeout overwrites rather than duplicates. The companion
+// `verify_case_bundle` reads the result back; only a matching readback sets
+// written_to_graph = true in the answer file.
+
+USE GRAPH FraudLens
+
+// ---------------------------------------------------------------------------
+// upsert_case
+// Writes the case vertex and its entity links. Idempotent by primary ID.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY upsert_case(
+  STRING case_id,
+  STRING source,
+  STRING trust_tier,
+  STRING customer_id,
+  STRING card_id,
+  DATETIME opened_at,
+  DATETIME closed_at,
+  STRING status,
+  STRING verdict,
+  STRING outcome,
+  STRING pattern,
+  STRING pattern_description,
+  DOUBLE fraud_probability,
+  DOUBLE exposure_usd,
+  INT n_txns,
+  BOOL report_filed,
+  STRING trigger_type,
+  STRING trigger_text,
+  STRING stop_reason,
+  STRING summary,
+  STRING run_id,
+  STRING bundle_hash
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  INSERT INTO FraudCase VALUES (
+    case_id, source, trust_tier, customer_id, card_id, opened_at, closed_at,
+    status, verdict, outcome, pattern, pattern_description, fraud_probability,
+    exposure_usd, n_txns, report_filed, trigger_type, trigger_text,
+    stop_reason, summary, "", "", run_id, bundle_hash, _
+  );
+
+  IF customer_id != "" THEN
+    INSERT INTO ABOUT_CUSTOMER VALUES (case_id, customer_id);
+  END;
+  IF card_id != "" THEN
+    INSERT INTO ON_CARD VALUES (case_id, card_id, "subject");
+  END;
+
+  PRINT case_id AS written_case_id;
+}
+
+// ---------------------------------------------------------------------------
+// link_case_transactions
+// Records which transactions the case decided were part of the episode.
+// `affected` distinguishes the fraud episode from transactions merely
+// inspected, which matters when the case is later reused as memory.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY link_case_transactions(
+  STRING case_id,
+  SET<STRING> txn_ids,
+  BOOL affected,
+  STRING role
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@linked;
+
+  Txns = {Transaction.*};
+  Selected = SELECT t FROM Txns:t WHERE txn_ids.contains(t.txn_id)
+             ACCUM
+               INSERT INTO INVOLVES VALUES (case_id, t.txn_id, affected, role),
+               @@linked += 1;
+
+  PRINT @@linked AS linked_count;
+}
+
+// ---------------------------------------------------------------------------
+// link_case_connections
+// Connected cards and the device profiles that connect them. These are the
+// edges a later investigation traverses to find this case.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY link_case_connections(
+  STRING case_id,
+  SET<STRING> connected_card_ids,
+  SET<STRING> device_ids,
+  STRING link_reason
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@cards_linked;
+  SumAccum<INT> @@devices_linked;
+
+  Cards = {Card.*};
+  LinkedCards = SELECT c FROM Cards:c WHERE connected_card_ids.contains(c.card_id)
+                ACCUM
+                  INSERT INTO CONNECTED_TO VALUES (case_id, c.card_id, link_reason),
+                  @@cards_linked += 1;
+
+  Devices = {DeviceProfile.*};
+  LinkedDevices = SELECT d FROM Devices:d WHERE device_ids.contains(d.device_id)
+                  ACCUM
+                    INSERT INTO CONNECTED_DEVICE VALUES (case_id, d.device_id, "", 1),
+                    @@devices_linked += 1;
+
+  PRINT @@cards_linked AS cards_linked, @@devices_linked AS devices_linked;
+}
+
+// ---------------------------------------------------------------------------
+// add_case_evidence
+// One evidence item with its provenance. `ref` and `result_hash` are what
+// make the claim replayable; an evidence row without them is an assertion.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY add_case_evidence(
+  STRING case_id,
+  INT seq,
+  STRING claim,
+  STRING source,
+  STRING ref,
+  STRING direction,
+  STRING source_family,
+  DATETIME collected_at,
+  DATETIME cutoff,
+  STRING query_version,
+  STRING result_hash,
+  SET<STRING> entity_txn_ids
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  STRING evidence_id = case_id + ":" + to_string(seq);
+
+  INSERT INTO Evidence VALUES (
+    evidence_id, case_id, seq, claim, source, ref, direction, source_family,
+    collected_at, cutoff, query_version, result_hash
+  );
+  INSERT INTO HAS_EVIDENCE VALUES (case_id, evidence_id, seq);
+
+  Txns = {Transaction.*};
+  Supported = SELECT t FROM Txns:t WHERE entity_txn_ids.contains(t.txn_id)
+              ACCUM INSERT INTO SUPPORTS_TXN VALUES (evidence_id, t.txn_id, direction);
+
+  PRINT evidence_id AS evidence_id;
+}
+
+// ---------------------------------------------------------------------------
+// add_evidence_request
+// The controlled request and the response that was assumed. `simulated` is
+// stored as TRUE and never cleared: an assumed answer must not read later as
+// a verified one.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY add_evidence_request(
+  STRING case_id,
+  INT request_no,
+  STRING req_type,
+  INT asked_after_step,
+  STRING reason,
+  STRING assumed_response,
+  STRING simulator_version,
+  DATETIME requested_at
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  STRING request_id = case_id + ":req:" + to_string(request_no);
+
+  INSERT INTO EvidenceRequest VALUES (
+    request_id, case_id, request_no, req_type, asked_after_step, reason,
+    assumed_response, true, simulator_version, requested_at
+  );
+  INSERT INTO REQUESTED VALUES (case_id, request_id, asked_after_step);
+
+  PRINT request_id AS request_id;
+}
+
+// ---------------------------------------------------------------------------
+// add_action_decision
+// One recommended action at one stage, with the route the policy engine
+// computed and the rules that justified it. Approval state is recorded here
+// and appended to, never overwritten.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY add_action_decision(
+  STRING case_id,
+  STRING stage,
+  INT ordinal,
+  STRING action,
+  STRING route,
+  STRING reason,
+  STRING state,
+  STRING rule_ids
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  STRING decision_id = case_id + ":" + stage + ":" + to_string(ordinal);
+
+  INSERT INTO ActionDecision VALUES (
+    decision_id, case_id, stage, ordinal, action, route, reason, state,
+    "", to_datetime("1970-01-01 00:00:00"), rule_ids
+  );
+  INSERT INTO RECOMMENDS VALUES (case_id, decision_id, stage);
+
+  PRINT decision_id AS decision_id;
+}
+
+// ---------------------------------------------------------------------------
+// link_similar_cases
+// Records which prior cases were actually retrieved and used, with the scores
+// that selected them. This is how `similar_prior_cases` in the answer file
+// stays auditable instead of decorative.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY link_similar_cases(
+  STRING case_id,
+  SET<STRING> prior_case_ids,
+  DOUBLE structural_score,
+  DOUBLE semantic_score,
+  DOUBLE fused_score,
+  DATETIME retrieved_at
+) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@linked;
+
+  Cases = {FraudCase.*};
+  Priors = SELECT c FROM Cases:c WHERE prior_case_ids.contains(c.case_id)
+           ACCUM
+             INSERT INTO SIMILAR_TO VALUES (
+               case_id, c.case_id, structural_score, semantic_score,
+               fused_score, retrieved_at),
+             @@linked += 1;
+
+  PRINT @@linked AS linked_count;
+}
+
+// ---------------------------------------------------------------------------
+// verify_case_bundle
+// Reads back what was written and returns the counts and the stored hash. The
+// answer file may only claim written_to_graph = true when these match what
+// the adapter sent.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY verify_case_bundle(STRING case_id) FOR GRAPH FraudLens SYNTAX v2 {
+
+  SumAccum<INT> @@evidence_count;
+  SumAccum<INT> @@request_count;
+  SumAccum<INT> @@action_count;
+  SumAccum<INT> @@txn_count;
+  SumAccum<INT> @@connected_card_count;
+  SumAccum<INT> @@similar_count;
+
+  Start = {FraudCase.*};
+  TheCase = SELECT c FROM Start:c WHERE c.case_id == case_id;
+
+  Ev = SELECT e FROM TheCase:c -(HAS_EVIDENCE>)- Evidence:e
+       ACCUM @@evidence_count += 1;
+  Rq = SELECT r FROM TheCase:c -(REQUESTED>)- EvidenceRequest:r
+       ACCUM @@request_count += 1;
+  Ac = SELECT a FROM TheCase:c -(RECOMMENDS>)- ActionDecision:a
+       ACCUM @@action_count += 1;
+  Tx = SELECT t FROM TheCase:c -(INVOLVES>)- Transaction:t
+       ACCUM @@txn_count += 1;
+  Cc = SELECT cd FROM TheCase:c -(CONNECTED_TO>)- Card:cd
+       ACCUM @@connected_card_count += 1;
+  Sm = SELECT s FROM TheCase:c -(SIMILAR_TO>)- FraudCase:s
+       ACCUM @@similar_count += 1;
+
+  PRINT TheCase AS case_details;
+  PRINT @@evidence_count AS evidence_count;
+  PRINT @@request_count AS request_count;
+  PRINT @@action_count AS action_count;
+  PRINT @@txn_count AS transaction_count;
+  PRINT @@connected_card_count AS connected_card_count;
+  PRINT @@similar_count AS similar_case_count;
+}
