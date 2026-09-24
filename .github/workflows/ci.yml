@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# CI never touches the official dataset: it is not committed, and the
+# synthetic fixture exercises the same code paths with the same column
+# structure. Nothing here needs a TigerGraph workspace or an LLM key.
+jobs:
+  backend:
+    name: Backend (lint, format, tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,api,agent,data]"
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Format check
+        run: python -m black --check .
+
+      - name: Tests
+        run: python -m pytest tests -q
+
+      - name: End-to-end on the synthetic fixture
+        run: |
+          python scripts/prepare_data.py --fixture
+          python scripts/run_benchmark.py --fixture --out-dir /tmp/ci-cases
+          test -s /tmp/ci-cases/FIX-001.json
+
+  frontend:
+    name: Workbench (typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  secrets:
+    name: No committed secrets or dataset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check
+        run: |
+          # No dataset CSV belongs in git: data/raw is ignored wholesale, and
+          # the challenge treats the supplied copy as the benchmark.
+          if git ls-files | grep -E '^data/raw/.*\.csv$'; then
+            echo "::error::official dataset files must not be committed"
+            exit 1
+          fi
+          if git ls-files | grep -qE '^\.env$'; then
+            echo "::error::.env must not be committed"
+            exit 1
+          fi
